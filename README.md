@@ -39,10 +39,11 @@ We will do this by ourselves.
 
 This part is responsible for catching errors not possible to be caught by simply parsing and generating a tree representation of our code. If we have:
 
-```crisp
+```
 int x = "sadfsf"
+```
 
-This matches our context-free grammar format, but semantically it doesn't make sense. This is where semantic analysis comes in to play. We will do variable binding and 
+This matches our context-free grammar format, but semantically it doesn't make any sense. This is where semantic analysis comes in to play. We will do variable binding and 
 type checking here as it requires context.
 
 ## TODO
