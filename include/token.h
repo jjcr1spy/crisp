@@ -76,6 +76,8 @@ Expression Operators:
 "&"     -> Addr
 "+="    -> IncAssign
 "-="    -> MinusAssign
+"<="    -> LThanOrEq
+">="    -> GThanOrEq
 
 -------------------------------------------------
 
@@ -87,7 +89,6 @@ Keywords:
 "else"   -> KeyElse
 "void"   -> KeyVoid
 "int"    -> KeyInt
-"float"  -> KeyFloat
 "char"   -> KeyChar
 "double" -> KeyDouble
 

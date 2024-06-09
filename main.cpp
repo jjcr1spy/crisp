@@ -2,8 +2,6 @@
 #include <iostream>
 #include <unistd.h> 
 
-int x = 5;
-
 int main(int argc, char * argv[]) {
     if (argc != 2) {
         std::cout << "Command line requires 1 argument: file to be compiled.\n";
