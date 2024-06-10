@@ -43,7 +43,6 @@ const std::unordered_map<TokenType, std::string> Token::tokenToString = {
     {TokenType::KeyElse, "KeyElse"},
     {TokenType::KeyVoid, "KeyVoid"},
     {TokenType::KeyInt, "KeyInt"},
-    {TokenType::KeyFloat, "KeyFloat"},
     {TokenType::KeyChar, "KeyChar"},
     {TokenType::KeyDouble, "KeyDouble"},
 

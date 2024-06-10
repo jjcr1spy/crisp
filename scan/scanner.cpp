@@ -14,7 +14,6 @@ Scanner::Scanner(char * src) : source {}, keywords {
         {"else", TokenType::KeyElse},
         {"void", TokenType::KeyVoid},
         {"int", TokenType::KeyInt},
-        {"float", TokenType::KeyFloat},
         {"char", TokenType::KeyChar},
         {"double", TokenType::KeyDouble},
         {"void", TokenType::KeyVoid},

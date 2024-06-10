@@ -15,7 +15,7 @@ enum class TokenType {
     IncAssign, DecAssign, MinusAssign, LThanOrEq, GThanOrEq, 
 
     // Keywords
-    KeyFor, KeyWhile, KeyIf, KeyElse, KeyVoid, KeyInt, KeyFloat, KeyChar, KeyDouble,
+    KeyFor, KeyWhile, KeyIf, KeyElse, KeyVoid, KeyInt, KeyChar, KeyDouble,
 
     // Other
     SemiColon, LBrace, RBrace, Comma, Unknown,
