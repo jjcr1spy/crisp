@@ -4,76 +4,80 @@
 #include <cctype> 
 #include <iostream>
 
-#include "include/token.h"
-#include "include/scanner.h"
+#include "token.h"
+#include "scanner.h"
 
-Scanner::Scanner(char * src) : source {}, keywords {
-        {"for", TokenType::KeyFor},
-        {"while", TokenType::KeyWhile},
-        {"if", TokenType::KeyIf},
-        {"else", TokenType::KeyElse},
-        {"void", TokenType::KeyVoid},
-        {"int", TokenType::KeyInt},
-        {"char", TokenType::KeyChar},
-        {"double", TokenType::KeyDouble},
-        {"void", TokenType::KeyVoid},
-    }, tokens {}, start {0}, current {0}, line {1} 
-{
+Scanner::Scanner(const char * src) noexcept
+: mSource {}
+, mKeywords {
+    {"for", TokenType::KeyFor},
+    {"while", TokenType::KeyWhile},
+    {"if", TokenType::KeyIf},
+    {"else", TokenType::KeyElse},
+    {"void", TokenType::KeyVoid},
+    {"int", TokenType::KeyInt},
+    {"char", TokenType::KeyChar},
+    {"double", TokenType::KeyDouble},
+    {"void", TokenType::KeyVoid}}
+, mStart {0}
+, mCurrent {0}
+, mLine {1} {
     std::ifstream in(src); // open src file
 
     std::stringstream strStream;
-    strStream << in.rdbuf(); // read the file
-    source = strStream.str(); // source holds the content of the file
+    strStream << in.rdbuf(); // read the file into buffer
+
+    mSource = std::move(strStream.str()); // member source holds the content of the file now
 
     in.close(); // close src file   
 }
 
-Scanner::~Scanner() {};
+Scanner::~Scanner() noexcept {}
 
-bool Scanner::isAtEnd() const { 
-    return current >= static_cast<int>(source.length());
+bool Scanner::isAtEnd() const noexcept { 
+    return mCurrent >= static_cast<int>(mSource.length());
 }
 
-char Scanner::advance() { 
-    return source[current++];
+char Scanner::advance() noexcept { 
+    return mSource[mCurrent++];
 }
 
-bool Scanner::match(char expected) {
+bool Scanner::match(char expected) noexcept {
     if (isAtEnd()) return false;
-    if (source[current] != expected) return false;
+    if (mSource[mCurrent] != expected) return false;
         
-    current++;
+    mCurrent++;
     return true;
 }
 
-char Scanner::peek() const {
+char Scanner::peek() const noexcept {
     if (isAtEnd()) return '\0';
-    return source[current];
+    return mSource[mCurrent];
 } 
 
-char Scanner::peekNext() const {
-    if (current + 1 >= static_cast<int>(source.length())) return '\0';
-    return source[current + 1];
+char Scanner::peekNext() const noexcept {
+    if (mCurrent + 1 >= static_cast<int>(mSource.length())) return '\0';
+    return mSource[mCurrent + 1];
 } 
 
-void Scanner::identifier() {
+void Scanner::identifier() noexcept {
     while (isalnum(peek()) || peek() == '_') {
         advance();
     }
 
-    auto find = keywords.find(source.substr(start, current - start));
+    auto find = mKeywords.find(mSource.substr(mStart, mCurrent - mStart));
 
-    if (find != keywords.end()) addToken(find->second, start, current);
-    else addToken(TokenType::Identifier, start, current);
+    if (find != mKeywords.end()) addToken(find->second);
+    else addToken(TokenType::Identifier);
 }
 
-void Scanner::character() {
+void Scanner::character() noexcept {
     while (peek() != '\'' && !isAtEnd()) {        
         advance();
     }
 
     if (isAtEnd()) {
-        addToken(TokenType::Unknown, start, current);
+        addToken(TokenType::Unknown);
         return;
     }
 
@@ -81,18 +85,18 @@ void Scanner::character() {
     advance();
 
     // trim the surrounding single quotes
-    addToken(TokenType::CharLit, start + 1, current - 1);
+    addToken(TokenType::CharLit);
 }
 
-void Scanner::string() { // support multi-line strings
+void Scanner::string() noexcept { // support multi-line strings
     while (peek() != '"' && !isAtEnd()) {
-        if (peek() == '\n') line++;
+        if (peek() == '\n') mLine++;
         
         advance();
     }
 
     if (isAtEnd()) {
-        addToken(TokenType::Unknown, start, current);
+        addToken(TokenType::Unknown);
         return;
     }
 
@@ -100,10 +104,10 @@ void Scanner::string() { // support multi-line strings
     advance();
 
     // trim the surrounding quotes
-    addToken(TokenType::StringLit, start + 1, current - 1);
+    addToken(TokenType::StringLit);
 }
 
-void Scanner::number() { // dont allow a leading or trailing decimal point
+void Scanner::number() noexcept { // dont allow a leading or trailing decimal point
     while (isdigit(peek())) advance();
 
     // look for a fractional part
@@ -113,156 +117,84 @@ void Scanner::number() { // dont allow a leading or trailing decimal point
 
         while (isdigit(peek())) advance();
 
-        addToken(TokenType::DoubleLit, start, current);
+        addToken(TokenType::DoubleLit);
     } else {
-        addToken(TokenType::IntLit, start, current);
+        addToken(TokenType::IntLit);
     }
 }
 
-void Scanner::addToken(TokenType type, int start, int end) { 
-    std::string s {source.substr(start, end - start)}; 
-    Token toAdd {type, std::move(s), line}; 
-    tokens.push_back(std::move(toAdd));
-
-    std::cout << toAdd << '\n';
+void Scanner::addToken(TokenType type) noexcept { 
+    Token toAdd {type, std::move(mSource.substr(mStart, mCurrent - mStart)), mLine, mStart}; 
+    mTokens.push_back(std::move(toAdd));
 }
 
-void Scanner::scanTokens() {
+void Scanner::scanTokens() noexcept {
     while (!isAtEnd()) { 
-        start = current;
+        mStart = mCurrent;
         scanToken();
     }
+
+    mTokens.push_back({TokenType::EndOfFile, "", mLine, mStart});
 }
 
-void Scanner::scanToken() {      
+void Scanner::scanToken() noexcept {      
     // handle newlines, spaces, and tabs as we dont care about them and check them first as they are common
-    while (!isAtEnd() && (source[current] == ' ' || source[current] == '\n' || source[current] == '\t')) {
-        if (source[current] == '\n') line++;
+    while (!isAtEnd() && (mSource[mCurrent] == ' ' || mSource[mCurrent] == '\n' || mSource[mCurrent] == '\t')) {
+        if (mSource[mCurrent] == '\n') mLine++;
 
-        current++;
+        mCurrent++;
     }
 
-    if (isAtEnd()) { // if at end of file
+    // EOF?
+    if (isAtEnd()) {
         return;
     }
 
-    start = current;
+    mStart = mCurrent;
     char c = advance(); 
     
     switch (c) {
-        case '/': // handle comments, only support // at the moment
+        case '/': // comments
             if (match('/')) {
                 while (peek() != '\n' && !isAtEnd()) advance();
             } else {
-                addToken(TokenType::Div, start, current);
+                addToken(TokenType::Div);
             }
-            break;
-        case '"': // for strings
+            return;
+        case '"': // strings
             string();
-            break;
-        case '\'': // for chars
+            return;
+        case '\'': // chars
             character();
-            break;
-        case '+': 
+            return;
+        case '+': // +, ++, +=
             if (match('+')) {
-                addToken(TokenType::Inc, start, current);
+                addToken(TokenType::Inc);
             } else if (match('=')) {
-                addToken(TokenType::IncAssign, start, current);
+                addToken(TokenType::IncAssign);
             } else {
-                addToken(TokenType::Plus, start, current);
+                addToken(TokenType::Plus);
             }
-            break;
-        case '-':
+            return;
+        case '-': // -, --, -=, -digit
             if (match('-')) {
-                addToken(TokenType::Dec, start, current);
+                addToken(TokenType::Dec);
             } else if (match('=')) {
-                addToken(TokenType::MinusAssign, start, current);
+                addToken(TokenType::MinusAssign);
             } else if (isdigit(peek())) {
                 number();
             } else {
-                addToken(TokenType::Minus, start, current);
+                addToken(TokenType::Minus);
             }
-            break;
-        case '!':
-            if (match('=')) {
-                addToken(TokenType::NotEqual, start, current);
-            } else {
-                addToken(TokenType::Not, start, current);
-            }
-            break;
-        case '<':
-            if (match('=')) {
-                addToken(TokenType::LThanOrEq, start, current);
-            } else {
-                addToken(TokenType::LessThan, start, current);
-            }
-            break;
-        case '>':
-            if (match('=')) {
-                addToken(TokenType::GThanOrEq, start, current);
-            } else {
-                addToken(TokenType::GreaterThan, start, current);
-            }
-            break;
-        case '&':
-            if (match('&')) {
-                addToken(TokenType::And, start, current);
-            } else {
-                addToken(TokenType::Addr, start, current);
-            }
-            break;
-        case '|':
-            if (match('|')) {
-                addToken(TokenType::Or, start, current);
-            } else {
-                addToken(TokenType::Unknown, start, current);
-            }
-            break;
-        case '=':
-            if (match('=')) {
-                addToken(TokenType::EqualTo, start, current);
-            } else {
-                addToken(TokenType::Assign, start, current);
-            }
-            break;
-        case '[':
-            addToken(TokenType::LBracket, start, current);
-            break;
-        case ']':
-            addToken(TokenType::RBracket, start, current);
-            break;
-        case '*':
-            addToken(TokenType::Mult, start, current);
-            break;
-        case '%':
-            addToken(TokenType::Mod, start, current);
-            break;
-        case ';':
-            addToken(TokenType::SemiColon, start, current);
-            break;
-        case '{':
-            addToken(TokenType::LBrace, start, current);
-            break;
-        case '}':
-            addToken(TokenType::RBrace, start, current);
-            break;
-        case ',':
-            addToken(TokenType::Comma, start, current);
-            break;
-        case '(':
-            addToken(TokenType::LParen, start, current);
-            break;
-        case ')':
-            addToken(TokenType::RParen, start, current);
-            break;
-        default:
+            return;
+        default: // positive digit, identifier or keyword -> otherwise unknown
             if (isdigit(c)) {
                 number();
             } else if (isalpha(c) || c == '_') {
                 identifier();
             } else {
-                addToken(TokenType::Unknown, start, current);
+                addToken(TokenType::Unknown);
             }
-            break;
+            return;
     }
-}     
+}

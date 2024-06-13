@@ -1,3 +1,8 @@
+/*
+defines the types of tokens i.e. enum class Token and a class for each token parsed to 
+encompass i.e. class Token
+*/
+
 #ifndef TOKEN_H
 #define TOKEN_H 
 
@@ -5,34 +10,42 @@
 #include <unordered_map>
 
 enum class TokenType {
-    // Literals
+    // literals
     Identifier, CharLit, IntLit, DoubleLit, StringLit,
     
-    // Expression Operators
+    // expression operators
     Assign, Plus, Minus, Mult, Div, Mod, Inc, Dec,
     LBracket, RBracket, EqualTo, NotEqual, Or, And,
     Not, LessThan, GreaterThan, LParen, RParen, Addr,
     IncAssign, DecAssign, MinusAssign, LThanOrEq, GThanOrEq, 
 
-    // Keywords
+    // keywords
     KeyFor, KeyWhile, KeyIf, KeyElse, KeyVoid, KeyInt, KeyChar, KeyDouble,
 
-    // Other
-    SemiColon, LBrace, RBrace, Comma, Unknown,
+    // other
+    SemiColon, LBrace, RBrace, Comma, Unknown, EndOfFile
 };
 
 class Token {
 public:
-    Token(TokenType, std::string, int);
-    ~Token() {};
-    
-    friend std::ostream& operator<<(std::ostream& out, const Token& token); // for debugging lexing added cout operator for Token type
-private:
-    static const std::unordered_map<TokenType, std::string> tokenToString; // store map from TokenType to the its string name -> map[TokenType::...] = "..."
+    // allow Parser to access all of private methods/members 
+    friend class Parser;
 
-    TokenType type; 
-    std::string lexeme; 
-    int line; 
+    Token(TokenType type, std::string str, int line, int pos) noexcept;
+    // members used only STL stuff which has mem management for me
+    ~Token() noexcept = default;
+
+    // store map from TokenType to the its string name -> map[TokenType::...] = "..."
+    static std::unordered_map<TokenType, std::string> mToString;
+private:
+    // token type
+    TokenType mType; 
+    // string of TokenType from source file
+    std::string mStr; 
+    // line number (for error messages)
+    int mLine; 
+    // start position on that line (for error messages)
+    int mPos;
 };
 
 /*
@@ -100,6 +113,7 @@ Other:
 "{"       -> LBrace
 "}"       -> RBrace
 ","       -> Comma
+EOF       -> EndOfFile
 All else fails -> Unknown
 
 */

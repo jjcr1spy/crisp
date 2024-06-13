@@ -5,38 +5,65 @@
 #include <vector>
 #include <unordered_map> 
 
-enum class TokenType; // defined in token.h
-class Token;          // defined in token.h
+// in token token.h
+enum class TokenType; 
+class Token;     
 
 class Scanner {
 public:
-    Scanner(char *);
-    ~Scanner();
-
-    void scanTokens(); // scan all tokens from input file by invoking scanToken iteratively
-private:
-    std::string source; // src file read into this string
-    std::unordered_map <std::string, TokenType> keywords; // store the letter only keywords 
-    std::vector<Token> tokens; // tokens in order of being read in from input file
-
-    int start; // points to first character of lexeme
-    int current; // points to current character being considered
-    int line; // line number we are at
+    // allow Parser to access all of private methods/members to implement recursive descent functions 
+    friend class Parser;
     
-    char advance(); // consume current char and advance
-    bool match(char); // for cases like + and ++, match determines + or ++ to be next token  
+    // constructor/destructor 
+    Scanner(const char *) noexcept;
+    // members used only STL stuff which has mem management for me
+    ~Scanner() noexcept = default;
 
-    void scanToken(); // scan the next token and call addToken to insert
-    void addToken(TokenType, int, int); // insert found token into member vector tokens
+    // scan all tokens by invoking scanToken iteratively which calls addToken 
+    void scanTokens() noexcept;
+private:
+    // source file read into this string
+    std::string mSource; 
+    // store keywords 
+    std::unordered_map<std::string, TokenType> mKeywords; 
+    // tokens in order of being read in from input file
+    std::vector<Token> mTokens; 
 
-    void character(); // for chars: 'a', '1'
-    void string(); // for strings: "hello"
-    void number(); // for int/double: 1.2, 20, -10, -1.50
-    void identifier(); // for identifiers + keywords with letters only
+    // first character of lexeme
+    int mStart; 
+    // current character being considered
+    int mCurrent; 
+    // curr line number 
+    int mLine;
+    
+    // consume current char and advance
+    char advance() noexcept; 
+    // for cases like + and ++, match determines + or ++ to be next token  
+    bool match(char) noexcept; 
 
-    bool isAtEnd() const; // if at end of file
-    char peek() const; // look at source[current] character in file
-    char peekNext() const; // look at source[current + 1] character in file
+    // insert token into member vector tokens
+    void addToken(TokenType) noexcept;
+    // scan next token by eventually calling addToken
+    void scanToken() noexcept; 
+
+    // for chars: 'a', '1'
+    void character() noexcept;
+    // for strings: "hello" 
+    void string() noexcept; 
+    // for int or double: 1.2, 20, -10, -1.50
+    void number() noexcept; 
+    // identifiers + keywords  
+    void identifier() noexcept; 
+
+    // EOF?
+    bool isAtEnd() const noexcept; 
+    // source[current] character in file
+    char peek() const noexcept; 
+    // source[current + 1] character in file
+    char peekNext() const noexcept; 
+
+    // functions below are for parsing functions in Parser
+    
 };
 
 #endif

@@ -1,65 +1,65 @@
 #include <iostream> 
-#include "include/token.h"
+#include "token.h"
 
-const std::unordered_map<TokenType, std::string> Token::tokenToString = {
-    // Literals
-    {TokenType::Identifier, "Identifier"},
-    {TokenType::CharLit, "CharLit"},
-    {TokenType::IntLit, "IntLit"},
-    {TokenType::DoubleLit, "DoubleLit"},
-    {TokenType::StringLit, "StringLit"},
+const std::unordered_map<TokenType, std::string> Token::mToString = {
+    // literals
+    {TokenType::Identifier, "identifier"},
+    {TokenType::CharLit, "char"},
+    {TokenType::IntLit, "int"},
+    {TokenType::DoubleLit, "double"},
+    {TokenType::StringLit, "string"},
 
-    // Expression Operators
-    {TokenType::Assign, "Assign"},
-    {TokenType::Plus, "Plus"},
-    {TokenType::Minus, "Minus"},
-    {TokenType::Mult, "Mult"},
-    {TokenType::Div, "Div"},
-    {TokenType::Mod, "Mod"},
-    {TokenType::Inc, "Inc"},
-    {TokenType::Dec, "Dec"},
-    {TokenType::LBracket, "LBracket"},
-    {TokenType::RBracket, "RBracket"},
-    {TokenType::EqualTo, "EqualTo"},
-    {TokenType::NotEqual, "NotEqual"},
-    {TokenType::Or, "Or"},
-    {TokenType::And, "And"},
-    {TokenType::Not, "Not"},
-    {TokenType::LessThan, "LessThan"},
-    {TokenType::GreaterThan, "GreaterThan"},
-    {TokenType::LParen, "LParen"},
-    {TokenType::RParen, "RParen"},
-    {TokenType::Addr, "Addr"},
-    {TokenType::IncAssign, "IncAssign"},
-    {TokenType::DecAssign, "DecAssign"},
-    {TokenType::MinusAssign, "MinusAssign"},
-    {TokenType::LThanOrEq, "LThanOrEq"},
-    {TokenType::GThanOrEq, "GThanOrEq"},
+    // expression operators
+    {TokenType::Assign, "="},
+    {TokenType::Plus, "+"},
+    {TokenType::Minus, "-"},
+    {TokenType::Mult, "*"},
+    {TokenType::Div, "/"},
+    {TokenType::Mod, "%"},
+    {TokenType::Inc, "++"},
+    {TokenType::Dec, "--"},
+    {TokenType::LBracket, "["},
+    {TokenType::RBracket, "]"},
+    {TokenType::EqualTo, "=="},
+    {TokenType::NotEqual, "!="},
+    {TokenType::Or, "||"},
+    {TokenType::And, "&&"},
+    {TokenType::Not, "!"},
+    {TokenType::LessThan, "<"},
+    {TokenType::GreaterThan, ">"},
+    {TokenType::LParen, "("},
+    {TokenType::RParen, ")"},
+    {TokenType::Addr, "&"},
+    {TokenType::IncAssign, "+="},
+    {TokenType::DecAssign, "-="},
+    {TokenType::MinusAssign, "*="},
+    {TokenType::LThanOrEq, "<="},
+    {TokenType::GThanOrEq, ">="},
 
-    // Keywords
-    {TokenType::KeyFor, "KeyFor"},
-    {TokenType::KeyWhile, "KeyWhile"},
-    {TokenType::KeyIf, "KeyIf"},
-    {TokenType::KeyElse, "KeyElse"},
-    {TokenType::KeyVoid, "KeyVoid"},
-    {TokenType::KeyInt, "KeyInt"},
-    {TokenType::KeyChar, "KeyChar"},
-    {TokenType::KeyDouble, "KeyDouble"},
-
-    // Other
-    {TokenType::SemiColon, "SemiColon"},
-    {TokenType::LBrace, "LBrace"},
-    {TokenType::RBrace, "RBrace"},
-    {TokenType::Comma, "Comma"},
-    {TokenType::Unknown, "Unknown"}
+    // keywords
+    {TokenType::KeyFor, "for"},
+    {TokenType::KeyWhile, "while"},
+    {TokenType::KeyIf, "if"},
+    {TokenType::KeyElse, "else"},
+    {TokenType::KeyVoid, "void"},
+    {TokenType::KeyInt, "int"},
+    {TokenType::KeyChar, "char"},
+    {TokenType::KeyDouble, "double"},
+    
+    // other
+    {TokenType::SemiColon, ";"},
+    {TokenType::LBrace, "{"},
+    {TokenType::RBrace, "}"},
+    {TokenType::Comma, ","},
+    {TokenType::Unknown, "Unknown"},
+    {TokenType::EndOfFile, "EOF"},
 };
 
-Token::Token(TokenType t, std::string s, int l) : type {t}, lexeme {s}, line {l} {};
+Token::Token(TokenType t, std::string s, int l, int p) noexcept
+: mType {t}
+, mStr {std::move(s)}
+, mLine {l}
+, mPos {p} { }
 
-std::ostream& operator<<(std::ostream& out, const Token& token) {
-    std::cout << "Token (" <<  token.tokenToString.at(token.type) << ", \"" << token.lexeme << "\")";
-
-    return out;
-}
 
 

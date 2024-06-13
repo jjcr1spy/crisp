@@ -1,3 +1,10 @@
+/*
+valid types for our language 
+*/
+
+#ifndef TYPES_H
+#define TYPES_H
+
 enum class Type {
 	Void,
 	Int,
@@ -8,3 +15,5 @@ enum class Type {
 	DoubleArray,
 	Function
 };
+
+#endif
