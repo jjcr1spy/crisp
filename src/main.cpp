@@ -1,7 +1,7 @@
 #include <iostream>
 #include <unistd.h>  
 
-#include "../parse/parser.h"
+#include "../parse/parse.h"
 #include "../error/parseExcept.h"
 
 int main(int argc, char * argv[]) {
@@ -14,22 +14,22 @@ int main(int argc, char * argv[]) {
         std::cout << "crisp: error: Input filename is either non-existent or non-readable\n";
         return 1;
     }
-    
-    // scan all tokens into scanner before creating the parser
-    Scanner scanner {argv[1]};
-    scanner.scanTokens();
 
     try {
+        Scanner scanner {argv[1]};
+        scanner.scanTokens();
+
         std::ostream * astStream = &std::cout, * errStream = &std::cerr;
         
-        Parser parser {scanner, errStream, astStream};
+        Parser parser {scanner, argv[1], errStream, astStream};
 
+        // cannot continue with optimizations if errors
         if (!parser.isValid()) {
             std::cerr << parser.getNumErrors() << " Error(s)" << std::endl;
 			return 1;
         }
 
-        // continue w llvm bitcode?
+        // continue w llvm bitcode gen
     } catch (ParseExcept& e) {
 		std::cerr << "crisp: error: Critical error. Compilation halted." << std::endl;
 		return 1;

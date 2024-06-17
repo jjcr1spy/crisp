@@ -1,5 +1,5 @@
 /*
-valid types for our language 
+defines the valid types for our language 
 */
 
 #ifndef TYPES_H

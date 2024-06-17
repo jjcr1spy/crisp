@@ -1,6 +1,5 @@
 /*
-defines the types of tokens i.e. enum class Token and a class for each token parsed to 
-encompass i.e. class Token
+defines the types of tokens i.e. enum class TokenType and a wrapper class i.e Token for each token parsed to store other useful info
 */
 
 #ifndef TOKEN_H
@@ -31,21 +30,25 @@ public:
     // allow Parser to access all of private methods/members 
     friend class Parser;
 
-    Token(TokenType type, std::string str, int line, int pos) noexcept;
-    // members used only STL stuff which has mem management for me
-    ~Token() noexcept = default;
-
     // store map from TokenType to the its string name -> map[TokenType::...] = "..."
     static std::unordered_map<TokenType, std::string> mToString;
+
+    Token(TokenType type, std::string&& str, int line, int pos) noexcept;
+
+    // only using STL stuff which has mem management for me
+    ~Token() noexcept = default;
 private:
     // token type
-    TokenType mType; 
+    TokenType mType;
+
     // string of TokenType from source file
     std::string mStr; 
-    // line number (for error messages)
+
+    // line number (for error messages down the line)
     int mLine; 
-    // start position on that line (for error messages)
-    int mPos;
+
+    // column number (for error messages down the line)
+    int mCol;
 };
 
 /*

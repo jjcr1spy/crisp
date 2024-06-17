@@ -33,7 +33,7 @@ public:
 
 class ParseExceptMsg : public virtual ParseExcept {
 public:
-	ParseExceptMsg(const char * msg)
+	ParseExceptMsg(const char * msg) noexcept
 	: mMsg(msg) { }
 	
 	virtual const char * what() const noexcept override {
@@ -67,7 +67,7 @@ public:
 
 class UnknownToken : public virtual ParseExcept {
 public:
-	UnknownToken(const char * str, unsigned int& colNum) noexcept
+	UnknownToken(std::string& str, int& colNum) noexcept
 	: mStr(str)
 	, mCol(colNum) { }
 	
@@ -81,8 +81,8 @@ public:
 	
 	virtual void printException(std::stringstream& output) const noexcept override;
 private:
-	const char * mStr;
-	unsigned int& mCol;
+	std::string& mStr;
+	int& mCol;
 };
 
 class TokenMismatch : public virtual ParseExcept {

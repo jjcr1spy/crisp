@@ -1,29 +1,28 @@
-# Compiler
-CXX = g++
+# g++ specifications etc
+include ./Makefile.variables
 
-# Compiler flags
-CXXFLAGS = -std=c++11 -Wall -Wextra
+# where we store .o files
+OBJDIR := ./bin
 
-# Source files
-SRCS = token.cpp scanner.cpp parser.cpp main.cpp 
+# name of the exe 
+EXEC := crisp
 
-# Object files
-OBJS = $(SRCS:.cpp=.o)
+# phony targets (targets that don't represent actual files)
+.PHONY: all clean
 
-# Executable
-EXEC = crisp
+# compile all .cpp files into .o files and put them in $(OBJDIR)
+all:
+	$(MAKE) -C src all
+	$(MAKE) -C scan all
+	$(MAKE) -C parse all
+	$(MAKE) -C error all
+	$(MAKE) crisp
 
-# Default target
-all: $(EXEC)
+# link all object files together into executable $(EXEC)
+crisp: $(wildcard $(OBJDIR)/*.o)
+	$(CXX) $^ -o $(EXEC)
 
-# Link object files to create executable
-$(EXEC): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $(EXEC)
-
-# Compile source files into object files
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Clean target to remove object files and executable
+# remove all .o files and the executable
 clean:
-	rm -f $(OBJS) $(EXEC)
+	rm -f $(OBJDIR)/*.o
+	rm -f $(EXEC)

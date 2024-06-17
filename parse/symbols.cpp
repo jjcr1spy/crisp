@@ -1,6 +1,21 @@
 #include <algorithm>
 #include <iostream>
+
 #include "symbols.h"
+
+SymbolTable::SymbolTable() noexcept
+: mCurrentScope(nullptr) {
+	mCurrentScope = enterScope();
+    
+	auto id = createIdentifier("@@function");
+	id->setType(Type::Function);
+
+	id = createIdentifier("@@variable");
+	id->setType(Type::Int);
+
+	id = createIdentifier("printf");
+	id->setType(Type::Function);
+}
 
 SymbolTable::~SymbolTable() noexcept {
 	delete mCurrentScope;
@@ -34,7 +49,7 @@ Identifier * ScopeTable::search(const std::string& name) noexcept {
     return nullptr;
 }
 
-void ScopeTable::print(std::ostream& output, int depth = 0) const noexcept {
+void ScopeTable::print(std::ostream& output, int depth) const noexcept {
     std::vector<Identifier*> idents;
 	
     for (const auto& sym : mSymbols) idents.push_back(sym.second);
@@ -105,7 +120,7 @@ Identifier * SymbolTable::getIdentifier(const std::string& s) noexcept {
 }
 
 ScopeTable * SymbolTable::enterScope() noexcept {
-    mCurrentScope = new ScopeTable(mCurrentScope);
+    return mCurrentScope = new ScopeTable(mCurrentScope);
 }
 
 void SymbolTable::exitScope() noexcept {
@@ -116,4 +131,25 @@ void SymbolTable::print(std::ostream& output) const noexcept {
     output << "Symbols:\n";
 
 	if (mCurrentScope) mCurrentScope->print(output);
+}
+
+StringTable::~StringTable() noexcept {
+	for (auto i : mStrings) {
+		delete i.second;
+	}
+}
+
+// looks up the requested string in the string table
+// if it exists returns the corresponding ConstStr
+// otherwise constructs a new ConstStr and returns that
+ConstStr * StringTable::getString(std::string& val) noexcept {
+	auto iter = mStrings.find(val);
+
+	if (iter != mStrings.end()) {
+		return iter->second;
+	} else {
+		ConstStr * newStr = new ConstStr(val);
+		mStrings.emplace(val, newStr);
+		return newStr;
+	}
 }

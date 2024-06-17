@@ -1,7 +1,8 @@
 #include <iostream> 
+
 #include "token.h"
 
-const std::unordered_map<TokenType, std::string> Token::mToString = {
+std::unordered_map<TokenType, std::string> Token::mToString = {
     // literals
     {TokenType::Identifier, "identifier"},
     {TokenType::CharLit, "char"},
@@ -55,11 +56,11 @@ const std::unordered_map<TokenType, std::string> Token::mToString = {
     {TokenType::EndOfFile, "EOF"},
 };
 
-Token::Token(TokenType t, std::string s, int l, int p) noexcept
+Token::Token(TokenType t, std::string&& s, int l, int p) noexcept
 : mType {t}
 , mStr {std::move(s)}
 , mLine {l}
-, mPos {p} { }
+, mCol {p} { }
 
 
 

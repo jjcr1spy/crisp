@@ -5,7 +5,7 @@
 #include <iostream>
 
 #include "token.h"
-#include "scanner.h"
+#include "scan.h"
 
 Scanner::Scanner(const char * src) noexcept
 : mSource {}
@@ -21,7 +21,8 @@ Scanner::Scanner(const char * src) noexcept
     {"void", TokenType::KeyVoid}}
 , mStart {0}
 , mCurrent {0}
-, mLine {1} {
+, mLine {1} 
+, mCol {1} {
     std::ifstream in(src); // open src file
 
     std::stringstream strStream;
@@ -32,21 +33,23 @@ Scanner::Scanner(const char * src) noexcept
     in.close(); // close src file   
 }
 
-Scanner::~Scanner() noexcept {}
-
 bool Scanner::isAtEnd() const noexcept { 
     return mCurrent >= static_cast<int>(mSource.length());
 }
 
 char Scanner::advance() noexcept { 
+    ++mCol;
+
     return mSource[mCurrent++];
 }
 
 bool Scanner::match(char expected) noexcept {
     if (isAtEnd()) return false;
     if (mSource[mCurrent] != expected) return false;
-        
-    mCurrent++;
+    
+    ++mCol;
+    ++mCurrent;
+
     return true;
 }
 
@@ -88,14 +91,12 @@ void Scanner::character() noexcept {
     addToken(TokenType::CharLit);
 }
 
-void Scanner::string() noexcept { // support multi-line strings
-    while (peek() != '"' && !isAtEnd()) {
-        if (peek() == '\n') mLine++;
-        
+void Scanner::string() noexcept { // no support for multi-line strings
+    while (peek() != '"' && peek() != '\n' && !isAtEnd()) {    
         advance();
     }
 
-    if (isAtEnd()) {
+    if (isAtEnd() || peek() == '\n') {
         addToken(TokenType::Unknown);
         return;
     }
@@ -123,9 +124,9 @@ void Scanner::number() noexcept { // dont allow a leading or trailing decimal po
     }
 }
 
-void Scanner::addToken(TokenType type) noexcept { 
-    Token toAdd {type, std::move(mSource.substr(mStart, mCurrent - mStart)), mLine, mStart}; 
-    mTokens.push_back(std::move(toAdd));
+void Scanner::addToken(TokenType type) noexcept {
+    // want column of start of token so need to subtract length of token str
+    mTokens.emplace_back(type, std::move(mSource.substr(mStart, mCurrent - mStart)), mLine, mCol - mCurrent - mStart);
 }
 
 void Scanner::scanTokens() noexcept {
@@ -140,9 +141,14 @@ void Scanner::scanTokens() noexcept {
 void Scanner::scanToken() noexcept {      
     // handle newlines, spaces, and tabs as we dont care about them and check them first as they are common
     while (!isAtEnd() && (mSource[mCurrent] == ' ' || mSource[mCurrent] == '\n' || mSource[mCurrent] == '\t')) {
-        if (mSource[mCurrent] == '\n') mLine++;
+        ++mCol;
+        
+        if (mSource[mCurrent] == '\n') {
+            ++mLine;
+            mCol = 1;
+        }
 
-        mCurrent++;
+        ++mCurrent;
     }
 
     // EOF?

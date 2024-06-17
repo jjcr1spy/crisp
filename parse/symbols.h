@@ -1,3 +1,7 @@
+/*
+defines the classes needed to perform semantic analysis i.e. class Identifier, ScopeTable, SymbolTable 
+*/
+
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
 
@@ -5,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+
 #include "types.h"
 
 class ASTFunc;
@@ -14,6 +19,10 @@ public:
     friend class SymbolTable;
 
     ~Identifier() noexcept = default;
+
+    bool isDummy() const noexcept {
+		return mName == "@@variable" || mName == "@@function";
+	}
 
     const std::string& getName() const noexcept {
         return mName;
@@ -62,10 +71,13 @@ private:
     
     // name of ident
     std::string mName;
+
     // pointer to function of ident
     std::shared_ptr<ASTFunc> mFunction;
+
     // type of ident
     Type mType;
+
     // for arrays number of elements
     size_t mElemCount;
 };
@@ -74,6 +86,7 @@ private:
 class ScopeTable {
 public:
     ScopeTable(ScopeTable * parent) noexcept;
+
     ~ScopeTable() noexcept;
     
     // adds the requested identifier to the table
@@ -107,7 +120,7 @@ private:
 // store member as ScopeTable to exit and leave scopes
 class SymbolTable {
 public:
-    SymbolTable() noexcept = default;
+    SymbolTable() noexcept;
     ~SymbolTable() noexcept;
 
     // returns true if declared in this scope
@@ -130,6 +143,34 @@ public:
     void print(std::ostream& output) const noexcept;
 private:
     ScopeTable * mCurrentScope; 
+};
+
+// used to store/reference constant strings
+class ConstStr {
+public:
+	friend class StringTable;
+
+	ConstStr(std::string& text)
+	: mText(text) {}
+	
+	const std::string& getText() const noexcept {
+		return mText;
+	}
+private:
+	const std::string& mText;
+};
+
+class StringTable {
+public:
+	StringTable() noexcept = default;
+	~StringTable() noexcept;
+	
+	// looks up the requested string in the string table
+	// if it exists returns the corresponding ConstStr
+	// otherwise constructs a new ConstStr and returns that
+	ConstStr * getString(std::string& val) noexcept;
+private:
+	std::unordered_map<std::string, ConstStr *> mStrings;
 };
 
 #endif

@@ -8,9 +8,8 @@ void ParseExceptMsg::printException(std::stringstream& output) const noexcept {
     output << mMsg;
 }
 
-void OperandMissing::printException(std::stringstream& output) const noexcept {
-	output << "Binary operation " << Token::mToString[mOp];
-	output << " requires two operands.";
+void UnknownToken::printException(std::stringstream& output) const noexcept {
+	output << "Invalid symbol: " << mStr;
 }
 
 void TokenMismatch::printException(std::stringstream& output) const noexcept {
