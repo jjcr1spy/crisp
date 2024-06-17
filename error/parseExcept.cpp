@@ -1,18 +1,18 @@
 #include "parseExcept.h"
 
-void ParseExcept::printException(std::stringstream& output) const noexcept {
+void ParseExcept::printException(std::ostream& output) const noexcept {
 	output << what();
 }
 
-void ParseExceptMsg::printException(std::stringstream& output) const noexcept {
+void ParseExceptMsg::printException(std::ostream& output) const noexcept {
     output << mMsg;
 }
 
-void UnknownToken::printException(std::stringstream& output) const noexcept {
+void UnknownToken::printException(std::ostream& output) const noexcept {
 	output << "Invalid symbol: " << mStr;
 }
 
-void TokenMismatch::printException(std::stringstream& output) const noexcept {
+void TokenMismatch::printException(std::ostream& output) const noexcept {
     output << "Expected: " << Token::mToString[mExpected];
     output << " but saw: ";
 
@@ -26,7 +26,7 @@ void TokenMismatch::printException(std::stringstream& output) const noexcept {
     }
 }
 
-void OperandMissing::printException(std::stringstream& output) const noexcept {
+void OperandMissing::printException(std::ostream& output) const noexcept {
 	output << "Binary operation " << Token::mToString[mOp];
 	output << " requires two operands.";
 }

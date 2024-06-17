@@ -28,7 +28,7 @@ public:
 		return "Exception while parsing";
 	}
 
-	virtual void printException(std::stringstream& output) const noexcept;
+	virtual void printException(std::ostream& output) const noexcept;
 };
 
 class ParseExceptMsg : public virtual ParseExcept {
@@ -40,7 +40,7 @@ public:
 		return "Exception while parsing w/ message";
 	}
 	
-	virtual void printException(std::stringstream& output) const noexcept override;
+	virtual void printException(std::ostream& output) const noexcept override;
 private:
 	const char * mMsg;
 };
@@ -79,7 +79,7 @@ public:
 		return "Unknown token";
 	}
 	
-	virtual void printException(std::stringstream& output) const noexcept override;
+	virtual void printException(std::ostream& output) const noexcept override;
 private:
 	std::string& mStr;
 	int& mCol;
@@ -98,7 +98,7 @@ public:
 		return "Token mismatch detected";
 	}
 	
-	virtual void printException(std::stringstream& output) const noexcept override;
+	virtual void printException(std::ostream& output) const noexcept override;
 private:
 	TokenType mExpected;
 	TokenType mActual;
@@ -116,7 +116,7 @@ public:
 		return "Missing binary operand";
 	}
 	
-	virtual void printException(std::stringstream& output) const noexcept override;
+	virtual void printException(std::ostream& output) const noexcept override;
 private:
 	TokenType mOp;
 };

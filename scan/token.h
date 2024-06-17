@@ -19,7 +19,7 @@ enum class TokenType {
     IncAssign, DecAssign, MinusAssign, LThanOrEq, GThanOrEq, 
 
     // keywords
-    KeyFor, KeyWhile, KeyIf, KeyElse, KeyVoid, KeyInt, KeyChar, KeyDouble,
+    KeyFor, KeyWhile, KeyIf, KeyElse, KeyVoid, KeyInt, KeyChar, KeyDouble, KeyReturn,
 
     // other
     SemiColon, LBrace, RBrace, Comma, Unknown, EndOfFile
@@ -33,7 +33,7 @@ public:
     // store map from TokenType to the its string name -> map[TokenType::...] = "..."
     static std::unordered_map<TokenType, std::string> mToString;
 
-    Token(TokenType type, std::string&& str, int line, int pos) noexcept;
+    Token(TokenType type, std::string&& str, int line, int col) noexcept;
 
     // only using STL stuff which has mem management for me
     ~Token() noexcept = default;
@@ -107,6 +107,7 @@ Keywords:
 "int"    -> KeyInt
 "char"   -> KeyChar
 "double" -> KeyDouble
+"return" -> KeyReturn
 
 -------------------------------------------------
 

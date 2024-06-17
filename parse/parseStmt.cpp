@@ -124,7 +124,7 @@ std::shared_ptr<ASTDecl> Parser::parseDecl() {
 					err += " to ";
 					err += getTypeText(ident->getType());
 
-					reportSemantError(err);
+					reportSemantError(err, col);
 				}
 
 				// if this is a character array we need to do extra checks
@@ -186,6 +186,9 @@ std::shared_ptr<ASTStmt> Parser::parseStmt() {
 		else if ((retVal = parseNullStmt()));
 		else if ((retVal = parseIfStmt()));
 		else if ((retVal = parseDecl()));
+        else {
+            // NEED TO PARSE EXPR THEN as its in the form expr;
+        }
 	} catch (ParseExcept& e) {
 		reportError(e);
 		
@@ -252,132 +255,232 @@ std::shared_ptr<ASTStmt> Parser::parseAssignStmt() {
 	std::shared_ptr<ASTStmt> retVal;
 	std::shared_ptr<ASTArraySub> arraySub;
 	
-	if (peekToken() == Token::Identifier)
-	{
-		Identifier* ident = getVariable(getTokenTxt());
+	if (mCurrToken.mType == TokenType::Identifier) {
+		Identifier * ident = getVariable(mCurrToken.mStr);
 		
 		consumeToken();
 		
-		// Now let's see if this is an array subscript
-		if (peekAndConsume(Token::LBracket))
-		{
-			try
-			{
-				shared_ptr<ASTExpr> expr = parseExpr();
-				if (!expr)
-				{
+		// now lets see if this is an array subscript
+		if (peekAndConsume(TokenType::LBracket)) {
+			try {
+				std::shared_ptr<ASTExpr> expr = parseExpr();
+
+				if (!expr) {
 					throw ParseExceptMsg("Valid expression required inside [ ].");
 				}
 				
-				arraySub = make_shared<ASTArraySub>(*ident, expr);
-			}
-			catch (ParseExcept& e)
-			{
-				// If this expr is bad, consume until RBracket
+				arraySub = std::make_shared<ASTArraySub>(*ident, expr);
+			} catch (ParseExcept& e) {
+				// if this expr is bad consume until RBracket
 				reportError(e);
-				consumeUntil(Token::RBracket);
-				if (peekToken() == Token::EndOfFile)
-				{
+				
+                consumeUntil(TokenType::RBracket);
+
+				if (mCurrToken.mType == TokenType::EndOfFile) {
 					throw EOFExcept();
 				}
 			}
 			
-			matchToken(Token::RBracket);
+			matchToken(TokenType::RBracket);
 		}
 		
-		// Just because we got an identifier DOES NOT necessarily mean
-		// this is an assign statement.
-		// This is because there is a common left prefix between
+		// just because we got an identifier DOES NOT necessarily mean
+		// this is an assign statement because there is a common left prefix between
 		// AssignStmt and an ExprStmt with statements like:
 		// id ;
 		// id [ Expr ] ;
 		// id ( FuncCallArgs ) ;
 		
-		// So... We see if the next token is a =. If it is, then this is
-		// an AssignStmt. Otherwise, we set the "unused" variables
+		// so... we see if the next token is a = and if it is then this is
+		// an AssignStmt otherwise we set the "unused" variables
 		// so parseFactor will later find it and be able to match
-		int col = mColNumber;
-		if (peekAndConsume(Token::Assign))
-		{
-			shared_ptr<ASTExpr> expr = parseExpr();
+
+		int col = mCurrToken.mCol;
+		if (peekAndConsume(TokenType::Assign)) {
+			std::shared_ptr<ASTExpr> expr = parseExpr();
 			
-			if (!expr)
-			{
+			if (!expr) {
 				throw ParseExceptMsg("= must be followed by an expression");
 			}
 			
-			// If we matched an array, we want to make an array assign stmt
-			if (arraySub)
-			{
-				// Make sure the type of this expression matches the declared type
+			// if we matched an array we want to make an array assign stmt
+			if (arraySub) {
+				// make sure the type of this expression matches the declared type
 				Type subType;
-				if (arraySub->getType() == Type::IntArray)
-				{
-					subType = Type::Int;
-				}
-				else
-				{
-					subType = Type::Char;
-				}
-				if (mCheckSemant && subType != expr->getType())
-				{
-					// We can do a conversion if it's from int to char
-					if (subType == Type::Char &&
-						expr->getType() == Type::Int)
-					{
-						expr = intToChar(expr);
-					}
-					else
-					{
-						std::string err("Cannot assign an expression of type ");
-						err += getTypeText(expr->getType());
-						err += " to ";
-						err += getTypeText(subType);
-						reportSemantError(err, col);
-					}
-				}
-				retVal = make_shared<ASTAssignArrayStmt>(arraySub, expr);
-			}
-			else
-			{
-				// PA2: Check for semantic errors
-				if (ident->getType() == Type::Char)
-				{
-					if (expr->getType() == Type::Int)
-						expr = intToChar(expr);
+                
+                switch (arraySub->getType()) {
+                    case Type::IntArray:
+                        subType = Type::Int;
+                        break;
+                    case Type::DoubleArray:
+                        subType = Type::Double;
+                        break;
+                    case Type::CharArray:
+                        subType = Type::Char;
+                        break;
+                    default:
+                        break;
+                }
+
+				if (subType != expr->getType()) {
+					// dont do conversion at the moment
+                    std::string err("Cannot assign an expression of type ");
+                    err += getTypeText(expr->getType());
+                    err += " to ";
+                    err += getTypeText(subType);
+
+                    reportSemantError(err, col);
 				}
 
-				// after conversion if still not match
-				if (ident->getType() != expr->getType())
-				{
+				retVal = std::make_shared<ASTAssignArrayStmt>(arraySub, expr);
+			} else {
+				// dont do conversion at the moment
+				if (ident->getType() != expr->getType()) {
 					std::string err("Cannot assign an expression of type ");
 					err += getTypeText(expr->getType());
 					err += " to ";
 					err += getTypeText(ident->getType());
+
 					reportSemantError(err, col);
 				}
 
-				if (ident->getType() == Type::IntArray || ident->getType() == Type::CharArray)
-					reportSemantError("Reassignment of arrays is not allowed", col);
+				if (ident->getType() == Type::DoubleArray || ident->getType() == Type::IntArray || ident->getType() == Type::CharArray) {
+                    reportSemantError("Reassignment of arrays is not allowed", col);
+                }
 
-				retVal = make_shared<ASTAssignStmt>(*ident, expr);
+				retVal = std::make_shared<ASTAssignStmt>(*ident, expr);
 			}
 			
-			matchToken(Token::SemiColon);
-		}
-		else
-		{
-			// We either have an unused array, or an unused ident
-			if (arraySub)
-			{
-				mUnusedArray = arraySub;
-			}
-			else
-			{
-				mUnusedIdent = ident;
-			}
+			matchToken(TokenType::SemiColon);
+		} else {
+			// we either have an unused array or an unused ident
+			if (arraySub) mUnusedArray = arraySub;
+			else mUnusedIdent = ident;
 		}
 	}
+	
+	return retVal;
+}
+
+std::shared_ptr<ASTIfStmt> Parser::parseIfStmt() {
+	std::shared_ptr<ASTIfStmt> retVal;
+	
+	if (peekAndConsume(TokenType::KeyIf)) {
+		matchToken(TokenType::LParen);
+
+		std::shared_ptr<ASTExpr> expr = parseExpr();
+
+		if (!expr) throw ParseExceptMsg("Invalid condition for if statement");
+		
+        matchToken(TokenType::RParen);
+
+		std::shared_ptr<ASTStmt> stmt = parseStmt();
+		std::shared_ptr<ASTStmt> elseStmt;
+
+		if (peekAndConsume(TokenType::KeyElse)) elseStmt = parseStmt();
+
+		retVal = std::make_shared<ASTIfStmt>(expr, stmt, elseStmt);
+	}
+	
+	return retVal;
+}
+
+std::shared_ptr<ASTForStmt> Parser::parseForStmt() {
+	std::shared_ptr<ASTForStmt> retVal;
+	
+	if (peekAndConsume(TokenType::KeyFor)) {
+		// matchToken(TokenType::LParen);
+
+        // // should be decl or assignment or empty
+		// // std::shared_ptr<ASTExpr> expr = parseExpr();
+
+		// if (!expr) throw ParseExceptMsg("Invalid condition for if statement");
+		
+        // matchToken(TokenType::RParen);
+
+		// std::shared_ptr<ASTStmt> stmt = parseStmt();
+		// std::shared_ptr<ASTStmt> elseStmt;
+
+		// if (peekAndConsume(TokenType::KeyElse)) elseStmt = parseStmt();
+
+		// retVal = std::make_shared<ASTIfStmt>(expr, stmt, elseStmt);
+	}
+	
+	return retVal;
+}
+
+std::shared_ptr<ASTWhileStmt> Parser::parseWhileStmt() {
+	std::shared_ptr<ASTWhileStmt> retVal;
+	
+	if (peekAndConsume(TokenType::KeyWhile)) {
+		std::shared_ptr<ASTExpr> expr;
+		std::shared_ptr<ASTStmt> stmt;
+		
+        matchToken(TokenType::LParen);
+		
+        expr = parseExpr();
+		
+        if (!expr) throw ParseExceptMsg("Invalid condition for while statement");
+		
+        matchToken(TokenType::RParen);
+
+		stmt = parseStmt();
+
+		retVal = std::make_shared<ASTWhileStmt>(expr, stmt);
+	}
+	
+	return retVal;
+}
+
+std::shared_ptr<ASTReturnStmt> Parser::parseReturnStmt() {
+	std::shared_ptr<ASTReturnStmt> retVal;
+	
+	if (peekAndConsume(TokenType::KeyReturn)) {
+		if (peekIsOneOf({TokenType::SemiColon})) {
+			retVal = std::make_shared<ASTReturnStmt>(nullptr);
+
+			if (mCurrReturnType != Type::Void) reportSemantError("Invalid empty return in non-void function");
+			
+            consumeToken();
+		} else {
+			int col = mCurrToken.mCol;
+			
+            std::shared_ptr<ASTExpr> expr = parseExpr();
+
+			// no conversion atm
+			if (mCurrReturnType != expr->getType()) {
+				std::string err("Expected type ");
+				err += getTypeText(mCurrReturnType);
+				err += " in return statement";
+
+				reportSemantError(err, col);
+			}
+
+			retVal = std::make_shared<ASTReturnStmt>(expr);
+			
+            matchToken(TokenType::SemiColon);
+		}
+	}
+	
+	return retVal;
+}
+
+std::shared_ptr<ASTExprStmt> Parser::parseExprStmt() {
+	std::shared_ptr<ASTExprStmt> retVal;
+	
+	std::shared_ptr<ASTExpr> e = parseExpr();
+    if (e) {
+		retVal = std::make_shared<ASTExprStmt>(e);
+		matchToken(TokenType::SemiColon);
+	}
+	
+	return retVal;
+}
+
+std::shared_ptr<ASTNullStmt> Parser::parseNullStmt() {
+	std::shared_ptr<ASTNullStmt> retVal;
+	
+	if (peekAndConsume(TokenType::SemiColon)) retVal = std::make_shared<ASTNullStmt>();
 	
 	return retVal;
 }

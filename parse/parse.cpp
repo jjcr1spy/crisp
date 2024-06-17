@@ -1,5 +1,5 @@
 #include "parse.h"
-
+#include <iostream>
 Parser::Parser(Scanner& scanner, const char * fileName, std::ostream * errStream, std::ostream * astStream) 
 : mScanner {scanner}
 , mCurrToken {scanner.mTokens[0]}
@@ -9,7 +9,8 @@ Parser::Parser(Scanner& scanner, const char * fileName, std::ostream * errStream
 , mErrStream {errStream}
 , mAstStream {astStream}
 , mCurrReturnType {Type::Void}
-, mNeedPrintf {false} {
+, mNeedPrintf {false}
+, mUnusedIdent {nullptr} {
     try {
 		mRoot = parseProgram();
     } catch (ParseExcept& e) {
@@ -20,6 +21,11 @@ Parser::Parser(Scanner& scanner, const char * fileName, std::ostream * errStream
         displayErrors();
     }
 }
+
+/* 
+--------------------------------------------------------------------------------------------------------------
+methods used for error messages when parsing grammar and performing semantic analysis
+*/
 
 void Parser::reportError(const ParseExcept& except) noexcept {
 	std::stringstream errStrm;
@@ -32,9 +38,9 @@ void Parser::reportError(const std::string& msg) noexcept {
 }
 
 void Parser::reportSemantError(const std::string& msg, int col) noexcept {
-	int c = col == -1 ? mCurrToken.mCol : col;
+	int c = (col == -1) ? mCurrToken.mCol : col;
 
-    mErrors.push_back(std::make_shared<Error>(msg, mCurrToken.mLine, col));
+    mErrors.push_back(std::make_shared<Error>(msg, mCurrToken.mLine, c));
 }
 
 void Parser::displayErrorMsg(const std::string& line, std::shared_ptr<Error> error) noexcept {
@@ -68,17 +74,6 @@ void Parser::displayErrors() noexcept {
 	}
 }
 
-Identifier * Parser::getVariable(const std::string& name) noexcept {
-	Identifier * ident = mSymbolTable.getIdentifier(name);
-
-	if (!ident) {
-		reportSemantError("Use of undeclared identifier '" + name + "'");
-		return mSymbolTable.getIdentifier("@@variable");
-	}
-	
-	return ident;
-}
-
 const char * Parser::getTypeText(Type type) const noexcept {
 	switch (type) {
 		case Type::Char:
@@ -98,6 +93,24 @@ const char * Parser::getTypeText(Type type) const noexcept {
 		case Type::Function:
 			return "function";
 	}
+
+	return nullptr;
+}
+
+/* 
+--------------------------------------------------------------------------------------------------------------
+helper methods for parsing grammar 
+*/
+
+Identifier * Parser::getVariable(const std::string& name) noexcept {
+	Identifier * ident = mSymbolTable.getIdentifier(name);
+
+	if (!ident) {
+		reportSemantError("Use of undeclared identifier '" + name + "'");
+		return mSymbolTable.getIdentifier("@@variable");
+	}
+	
+	return ident;
 }
 
 // returns true if we are past last scanned token in vector
@@ -176,6 +189,11 @@ void Parser::consumeUntil(TokenType desired) noexcept {
 	}
 }
 
+/* 
+--------------------------------------------------------------------------------------------------------------
+methods for recursive descent parsing other are in parseExpr.cpp and parseStmt.cpp 
+*/
+
 std::shared_ptr<ASTProg> Parser::parseProgram() {
 	// create our base program node.
 	std::shared_ptr<ASTProg> retVal = std::make_shared<ASTProg>();
@@ -192,17 +210,10 @@ std::shared_ptr<ASTProg> Parser::parseProgram() {
 		reportError("Expected end of file");
 	}
 	
-	// if (IsValid())
-	// {
-	// 	if (mASTStream)
-	// 	{
-	// 		retVal->printNode((*mASTStream));
-	// 		if (mOutputSymbols)
-	// 		{
-	// 			mSymbols.print((*mASTStream));
-	// 		}
-	// 	}
-	// }
+	if (isValid()) {
+		retVal->printNode((*mAstStream));
+		mSymbolTable.print((*mAstStream));
+	}
 	
 	return retVal;
 }

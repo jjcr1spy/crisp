@@ -46,6 +46,7 @@ std::unordered_map<TokenType, std::string> Token::mToString = {
     {TokenType::KeyInt, "int"},
     {TokenType::KeyChar, "char"},
     {TokenType::KeyDouble, "double"},
+    {TokenType::KeyReturn, "return"},
     
     // other
     {TokenType::SemiColon, ";"},
@@ -56,11 +57,11 @@ std::unordered_map<TokenType, std::string> Token::mToString = {
     {TokenType::EndOfFile, "EOF"},
 };
 
-Token::Token(TokenType t, std::string&& s, int l, int p) noexcept
+Token::Token(TokenType t, std::string&& s, int l, int c) noexcept
 : mType {t}
 , mStr {std::move(s)}
 , mLine {l}
-, mCol {p} { }
+, mCol {c} { }
 
 
 

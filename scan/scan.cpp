@@ -18,7 +18,8 @@ Scanner::Scanner(const char * src) noexcept
     {"int", TokenType::KeyInt},
     {"char", TokenType::KeyChar},
     {"double", TokenType::KeyDouble},
-    {"void", TokenType::KeyVoid}}
+    {"void", TokenType::KeyVoid},
+    {"return", TokenType::KeyReturn}}
 , mStart {0}
 , mCurrent {0}
 , mLine {1} 
@@ -126,7 +127,7 @@ void Scanner::number() noexcept { // dont allow a leading or trailing decimal po
 
 void Scanner::addToken(TokenType type) noexcept {
     // want column of start of token so need to subtract length of token str
-    mTokens.emplace_back(type, std::move(mSource.substr(mStart, mCurrent - mStart)), mLine, mCol - mCurrent - mStart);
+    mTokens.emplace_back(type, std::move(mSource.substr(mStart, mCurrent - mStart)), mLine, mCol - (mCurrent - mStart));
 }
 
 void Scanner::scanTokens() noexcept {

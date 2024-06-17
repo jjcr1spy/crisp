@@ -63,8 +63,38 @@ protected:
 
 	// expressions (in parseExpr.cpp)
 	std::shared_ptr<ASTExpr> parseExpr();
-
+	std::shared_ptr<ASTLogicalOr> parseExprPrime(std::shared_ptr<ASTExpr> lhs);
+	
+	// andTerm (in parseExpr.cpp)
+	std::shared_ptr<ASTExpr> parseAndTerm();
+	std::shared_ptr<ASTLogicalAnd> parseAndTermPrime(std::shared_ptr<ASTExpr> lhs);
+	
+	// relExpr (in parseExpr.cpp)
+	std::shared_ptr<ASTExpr> parseRelExpr();
+	std::shared_ptr<ASTBinaryCmpOp> parseRelExprPrime(std::shared_ptr<ASTExpr> lhs);
+	
+	// numExpr (in parseExpr.cpp)
+	std::shared_ptr<ASTExpr> parseNumExpr();
+	std::shared_ptr<ASTBinaryMathOp> parseNumExprPrime(std::shared_ptr<ASTExpr> lhs);
+	
+	// term (in parseExpr.cpp)
+	std::shared_ptr<ASTExpr> parseTerm();
+	std::shared_ptr<ASTBinaryMathOp> parseTermPrime(std::shared_ptr<ASTExpr> lhs);
+	
+	// value (in parseExpr.cpp)
+	std::shared_ptr<ASTExpr> parseValue();
+	
+	// factor (in parseExpr.cpp)
+	std::shared_ptr<ASTExpr> parseFactor();
+	std::shared_ptr<ASTExpr> parseParenFactor();
 	std::shared_ptr<ASTConstantExpr> parseConstantFactor();
+	std::shared_ptr<ASTStringExpr> parseStringFactor();
+
+	// parseIdentFactor parses id, id [Expr], and id (FunCallArgs)
+	std::shared_ptr<ASTExpr> parseIdentFactor();
+	std::shared_ptr<ASTExpr> parseIncFactor();
+	std::shared_ptr<ASTExpr> parseDecFactor();
+	std::shared_ptr<ASTExpr> parseAddrOfArrayFactor();
 private:
 	struct Error {
         Error(const std::string& msg, int line, int col)
@@ -101,6 +131,9 @@ private:
 	// SymbolTable corresponding to the parsed file
 	SymbolTable mSymbolTable;
 
+	// String table for this file
+	StringTable mStrings;
+
 	// tracks the return type of the current function
 	Type mCurrReturnType;
 
@@ -109,6 +142,10 @@ private:
 
 	// pointer to root node of our program
 	std::shared_ptr<ASTProg> mRoot;
+
+	// used to resolve AsisgnStmt/Factor ambiguity
+	Identifier * mUnusedIdent;
+	std::shared_ptr<ASTArraySub> mUnusedArray;
     
 	// returns true if we are past last scanned token in vector
 	bool isAtEnd() const noexcept;
