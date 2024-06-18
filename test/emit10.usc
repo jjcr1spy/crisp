@@ -1,5 +1,8 @@
-// parse04e.usc
-// Statement parse errors
+// emit10.usc
+// Tests address-of-array
+// Expected output:
+// thequickbrownfoxjumpsoverthelazydog
+// brownfoxjumpsoverthelazydog
 //---------------------------------------------------------
 // Copyright (c) 2014, Sanjay Madhav
 // All rights reserved.
@@ -10,18 +13,10 @@
 
 int main()
 {
-	int;
-	int x = ;
-	x[] = 0;
-	x[5] =;
-	x = ;
-	int y = 0;
-	a =
-	y = 5;
-	if ()
-	{
-		y = 1
-	}
+	char str[] = "thequickbrownfoxjumpsoverthelazydog";
+	
+	printf("%s\n", str);
+	printf("%s\n", &str[8]);
 	
 	return 0;
 }

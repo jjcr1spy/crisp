@@ -265,7 +265,7 @@ std::shared_ptr<ASTBinaryMathOp> Parser::parseTermPrime(std::shared_ptr<ASTExpr>
 		consumeToken();
 
 		retVal->setLHS(lhs);
-        
+
 		rhs = parseValue();
 		
         if (!rhs) throw OperandMissing(token);
@@ -417,7 +417,7 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 						std::shared_ptr<ASTExpr> expr = parseExpr();
 
 						if (!expr) {
-							throw ParseExceptMsg("Valid expression required inside [ ].");
+							throw ParseExceptMsg("Valid expression required inside [ ]");
 						}
 						
 						std::shared_ptr<ASTArraySub> array = std::make_shared<ASTArraySub>(*ident, expr);
@@ -480,7 +480,7 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 										reportSemantError("The first parameter to printf must be a char[]");
 									}
                                 }
-                            } else if (currArg > func->getNumArgs()) {
+                            } else if (currArg > static_cast<int>(func->getNumArgs())) {
                                     std::string err("Function ");
                                     err += ident->getName();
                                     err += " takes only ";

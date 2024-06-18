@@ -125,12 +125,12 @@ void Parser::advance() noexcept {
 	mCurrToken = mScanner.mTokens[++mTokenIndex];
 }
 
-// consumes the current token
+// consumes the current token if arg is set to false then we throw exception for TokenType::Unkown
 // throws an exception if next token is Unknown and consumes it
-void Parser::consumeToken() {
+void Parser::consumeToken(bool unknownBad) {
 	advance();
 
-	if (mCurrToken.mType == TokenType::Unknown) {
+	if (unknownBad && mCurrToken.mType == TokenType::Unknown) {
 		throw UnknownToken(mCurrToken.mStr, mCurrToken.mCol);
 		consumeToken();
 	}
@@ -185,7 +185,21 @@ void Parser::matchTokenSeq(const std::vector<TokenType>& v) {
 // consumes tokens until either a match or EOF is found
 void Parser::consumeUntil(TokenType desired) noexcept {	
 	while (mCurrToken.mType != TokenType::EndOfFile && mCurrToken.mType != desired) {
-		consumeToken();
+		consumeToken(false);
+	}
+}
+
+void Parser::consumeUntil(const std::vector<TokenType>& desired) noexcept {
+	if (mCurrToken.mType == TokenType::EndOfFile) return;
+	
+	while (mCurrToken.mType != TokenType::EndOfFile) {
+		for (TokenType t : desired) {
+			if (mCurrToken.mType == t) {
+				return;
+			}
+		}
+
+		consumeToken(false);
 	}
 }
 
@@ -310,13 +324,14 @@ std::shared_ptr<ASTFunc> Parser::parseFunction() {
 		if (peekAndConsume(TokenType::LParen)) {
 			try {
 				std::shared_ptr<ASTArgDecl> arg = parseArgDecl();
+
 				while (arg) {
 					retVal->addArg(arg);
+
 					if (peekAndConsume(TokenType::Comma)) {
 						arg = parseArgDecl();
-						if (!arg) {
-							throw ParseExceptMsg("Additional function argument must follow a comma");
-						}
+
+						if (!arg) throw ParseExceptMsg("Additional function argument must follow a comma");
 					} else {
 						break;
 					}

@@ -1,5 +1,8 @@
-// parse04e.usc
-// Statement parse errors
+// emit05.usc
+// Tests assigning a string at assignment
+// (requires a llvm.memcpy)
+// Expected output:
+// It worked!
 //---------------------------------------------------------
 // Copyright (c) 2014, Sanjay Madhav
 // All rights reserved.
@@ -10,18 +13,9 @@
 
 int main()
 {
-	int;
-	int x = ;
-	x[] = 0;
-	x[5] =;
-	x = ;
-	int y = 0;
-	a =
-	y = 5;
-	if ()
-	{
-		y = 1
-	}
+	char str[] = "It worked!";
+	
+	printf("%s\n", str);
 	
 	return 0;
 }

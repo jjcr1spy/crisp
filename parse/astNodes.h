@@ -52,7 +52,7 @@ public:
         return mReturnType;
     }
 
-    int getNumArgs() const noexcept {
+    size_t getNumArgs() const noexcept {
         return mArgs.size();
     }
 protected:

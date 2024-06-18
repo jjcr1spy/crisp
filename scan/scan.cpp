@@ -93,11 +93,48 @@ void Scanner::character() noexcept {
 }
 
 void Scanner::string() noexcept { // no support for multi-line strings
-    while (peek() != '"' && peek() != '\n' && !isAtEnd()) {    
+    std::string s {""};
+
+    while (peek() != '"' && !isAtEnd()) {   
+        if (peek() == '\\') {
+            switch (peekNext()) {
+                case 'n':
+                    s += '\n';
+                    advance();
+
+                    break;
+                case 't':
+                    s += '\t';
+                    advance();
+
+                    break;
+                case '0':
+                    s += '\0';
+                    advance();
+
+                    break;
+                case '\'':
+                    s += '\'';
+                    advance();
+
+                    break;
+                case '\"':
+                    s += '\"';
+                    advance();
+
+                    break;
+                default:
+                    s += '\\';
+                    break;  
+            }
+        } else {
+            s += peek();
+        }
+
         advance();
     }
 
-    if (isAtEnd() || peek() == '\n') {
+    if (isAtEnd()) {
         addToken(TokenType::Unknown);
         return;
     }
@@ -105,8 +142,9 @@ void Scanner::string() noexcept { // no support for multi-line strings
     // the closing "
     advance();
 
-    // trim the surrounding quotes
-    addToken(TokenType::StringLit);
+    std::cout << s;
+
+    addToken(std::move(s));
 }
 
 void Scanner::number() noexcept { // dont allow a leading or trailing decimal point
@@ -130,13 +168,18 @@ void Scanner::addToken(TokenType type) noexcept {
     mTokens.emplace_back(type, std::move(mSource.substr(mStart, mCurrent - mStart)), mLine, mCol - (mCurrent - mStart));
 }
 
+// for strings bc we have to account for escape characters and trim the edge etc
+void Scanner::addToken(std::string&& s) noexcept {
+    mTokens.emplace_back(TokenType::StringLit, std::move(s), mLine, mCol - (mCurrent - mStart));
+}
+
 void Scanner::scanTokens() noexcept {
     while (!isAtEnd()) { 
         mStart = mCurrent;
         scanToken();
     }
 
-    mTokens.push_back({TokenType::EndOfFile, "", mLine, mStart});
+    mTokens.push_back({TokenType::EndOfFile, "", mLine, mCol});
 }
 
 void Scanner::scanToken() noexcept {      
@@ -159,49 +202,114 @@ void Scanner::scanToken() noexcept {
 
     mStart = mCurrent;
     char c = advance(); 
-    
+
     switch (c) {
-        case '/': // comments
-            if (match('/')) {
-                while (peek() != '\n' && !isAtEnd()) advance();
-            } else {
-                addToken(TokenType::Div);
+    case '/': // handle comments, only support // at the moment
+        if (match('/')) {
+            while (peek() != '\n' && !isAtEnd()) {
+                advance();
             }
-            return;
-        case '"': // strings
-            string();
-            return;
-        case '\'': // chars
-            character();
-            return;
-        case '+': // +, ++, +=
-            if (match('+')) {
-                addToken(TokenType::Inc);
-            } else if (match('=')) {
-                addToken(TokenType::IncAssign);
-            } else {
-                addToken(TokenType::Plus);
-            }
-            return;
-        case '-': // -, --, -=, -digit
-            if (match('-')) {
-                addToken(TokenType::Dec);
-            } else if (match('=')) {
-                addToken(TokenType::MinusAssign);
-            } else if (isdigit(peek())) {
-                number();
-            } else {
-                addToken(TokenType::Minus);
-            }
-            return;
-        default: // positive digit, identifier or keyword -> otherwise unknown
-            if (isdigit(c)) {
-                number();
-            } else if (isalpha(c) || c == '_') {
-                identifier();
-            } else {
-                addToken(TokenType::Unknown);
-            }
-            return;
+        } else {
+            addToken(TokenType::Div);
+        }
+
+        break;
+    case '"': // for strings
+        string();
+
+        break;
+    case '\'': // for chars
+        character();
+
+        break;
+    case '+': 
+        if (match('+')) addToken(TokenType::Inc);
+        else if (match('=')) addToken(TokenType::IncAssign);
+        else addToken(TokenType::Plus);
+    
+        break;
+    case '-':
+        if (match('-')) addToken(TokenType::Dec);
+        else if (match('=')) addToken(TokenType::MinusAssign);
+        else if (isdigit(peek())) number();
+        else addToken(TokenType::Minus);
+
+        break;
+    case '!':
+        if (match('=')) addToken(TokenType::NotEqual);
+        else addToken(TokenType::Not);
+
+        break;
+    case '<':
+        if (match('=')) addToken(TokenType::LThanOrEq);
+        else addToken(TokenType::LessThan);
+
+        break;
+    case '>':
+        if (match('=')) addToken(TokenType::GThanOrEq);
+        else addToken(TokenType::GreaterThan);
+
+        break;
+    case '&':
+        if (match('&')) addToken(TokenType::And);
+        else addToken(TokenType::Addr);
+
+        break;
+    case '|':
+        if (match('|')) addToken(TokenType::Or);
+        else addToken(TokenType::Unknown);
+
+        break;
+    case '=':
+        if (match('=')) addToken(TokenType::EqualTo);
+        else addToken(TokenType::Assign);
+
+        break;
+    case '[':
+        addToken(TokenType::LBracket);
+
+        break;
+    case ']':
+        addToken(TokenType::RBracket);
+
+        break;
+    case '*':
+        addToken(TokenType::Mult);
+
+        break;
+    case '%':
+        addToken(TokenType::Mod);
+
+        break;
+    case ';':
+        addToken(TokenType::SemiColon);
+
+        break;
+    case '{':
+        addToken(TokenType::LBrace);
+
+        break;
+    case '}':
+        addToken(TokenType::RBrace);
+
+        break;
+    case ',':
+        addToken(TokenType::Comma);
+
+        break;
+    case '(':
+        addToken(TokenType::LParen);
+
+        break;
+    case ')':
+        addToken(TokenType::RParen);
+
+        break;
+    default:
+        if (isdigit(c)) number();
+        else if (isalpha(c) || c == '_') identifier();
+        else addToken(TokenType::Unknown);
+
+        break;
     }
 }

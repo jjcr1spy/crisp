@@ -1,5 +1,12 @@
-// parse04e.usc
-// Statement parse errors
+// emit06.usc
+// Tests int to char conversion
+// Tests char to int conversion
+// Tests ++ and --
+// Expected output:
+// 1
+// 97
+// b
+// a
 //---------------------------------------------------------
 // Copyright (c) 2014, Sanjay Madhav
 // All rights reserved.
@@ -10,18 +17,14 @@
 
 int main()
 {
-	int;
-	int x = ;
-	x[] = 0;
-	x[5] =;
-	x = ;
-	int y = 0;
-	a =
-	y = 5;
-	if ()
-	{
-		y = 1
-	}
+	int x = 'a';
+	char a = x;
+	int y = a;
+	
+	printf("%d\n", x == a);
+	printf("%d\n", y);
+	printf("%c\n", ++a);
+	printf("%c\n", --a);
 	
 	return 0;
 }

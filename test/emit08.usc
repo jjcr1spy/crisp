@@ -1,5 +1,9 @@
-// parse04e.usc
-// Statement parse errors
+// emit08.usc
+// Tests stack variable allocations
+// A poorly implemented solution (eg. lazy alloca calls)
+// will likely result in a stack overflow
+// Expected result (will take a few seconds to run)
+// 2000000000
 //---------------------------------------------------------
 // Copyright (c) 2014, Sanjay Madhav
 // All rights reserved.
@@ -10,18 +14,15 @@
 
 int main()
 {
-	int;
-	int x = ;
-	x[] = 0;
-	x[5] =;
-	x = ;
-	int y = 0;
-	a =
-	y = 5;
-	if ()
+	int x = 0;
+	
+	while (x < 2000000000)
 	{
-		y = 1
+		int y = 0;
+		++x;
 	}
+	
+	printf("%d\n", x);
 	
 	return 0;
 }

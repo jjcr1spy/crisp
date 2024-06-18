@@ -56,6 +56,9 @@ private:
     // insert token into member vector tokens
     void addToken(TokenType) noexcept;
 
+    // for strings bc we have to account for escape characters and trim the edge etc
+    void addToken(std::string&& s) noexcept;
+
     // scan next token by eventually calling addToken
     void scanToken() noexcept; 
 

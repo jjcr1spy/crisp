@@ -1,5 +1,8 @@
-// parse04e.usc
-// Statement parse errors
+// emit09.usc
+// Tests basic short-circuiting
+// (logical or)
+// Expected output:
+// 1
 //---------------------------------------------------------
 // Copyright (c) 2014, Sanjay Madhav
 // All rights reserved.
@@ -10,18 +13,11 @@
 
 int main()
 {
-	int;
-	int x = ;
-	x[] = 0;
-	x[5] =;
-	x = ;
+	int x = 0;
 	int y = 0;
-	a =
-	y = 5;
-	if ()
-	{
-		y = 1
-	}
+	int z = 1;
+	
+	printf("%d\n", x || y || z);
 	
 	return 0;
 }

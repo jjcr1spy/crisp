@@ -192,14 +192,14 @@ std::shared_ptr<ASTStmt> Parser::parseStmt() {
 	} catch (ParseExcept& e) {
 		reportError(e);
 		
-		// skip all the tokens until the next semi-colon
+		// skip all the tokens until the next semi-colon or right brace
 		consumeUntil(TokenType::SemiColon);
 		
 		if (mCurrToken.mType == TokenType::EndOfFile) {
 			throw EOFExcept();
 		}
 		
-		// grab the semi-colon also
+		// grab the semi-colon or right brace 
 		consumeToken();
 		
 		// put in a null statement here so we can try to continue
@@ -232,7 +232,7 @@ std::shared_ptr<ASTCompoundStmt> Parser::parseCompoundStmt(bool isFuncBody) {
 		std::shared_ptr<ASTStmt> stmt, lastStmt; 
 		stmt = parseStmt();
 
-		while (stmt != nullptr) {
+		while (stmt) {
 			retVal->addStmt(stmt);
 			lastStmt = stmt;
 			stmt = parseStmt();
@@ -266,7 +266,7 @@ std::shared_ptr<ASTStmt> Parser::parseAssignStmt() {
 				std::shared_ptr<ASTExpr> expr = parseExpr();
 
 				if (!expr) {
-					throw ParseExceptMsg("Valid expression required inside [ ].");
+					throw ParseExceptMsg("Valid expression required inside [ ]");
 				}
 				
 				arraySub = std::make_shared<ASTArraySub>(*ident, expr);
@@ -370,10 +370,10 @@ std::shared_ptr<ASTIfStmt> Parser::parseIfStmt() {
 
 		std::shared_ptr<ASTExpr> expr = parseExpr();
 
-		if (!expr) throw ParseExceptMsg("Invalid condition for if statement");
-		
-        matchToken(TokenType::RParen);
+		if (!expr) reportError("Invalid condition for if statement");
 
+		matchToken(TokenType::RParen);
+		
 		std::shared_ptr<ASTStmt> stmt = parseStmt();
 		std::shared_ptr<ASTStmt> elseStmt;
 

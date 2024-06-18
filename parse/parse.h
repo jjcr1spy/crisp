@@ -154,7 +154,7 @@ private:
 	void advance() noexcept;
 
     // consumes the current token and throws an exception if next token is Unknown 
-	void consumeToken();
+	void consumeToken(bool unknownBad = true);
 
     // sees if the token matches the requested
 	// if it does it will consume the token and return true otherwise it will return false
@@ -181,6 +181,9 @@ private:
 
 	// consumes tokens until either a match or EOF is found
 	void consumeUntil(TokenType desired) noexcept;
+
+	// consumes tokens until either a match of one in the vector or EOF is found
+	void consumeUntil(const std::vector<TokenType>& desired) noexcept;
 
 	// Gets the variable, if it exists. Otherwise
 	// reports a semant error and returns @@variable
