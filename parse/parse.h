@@ -24,15 +24,18 @@ defines the parser i.e. class Parser which is used for recursive descent parsing
 
 class Parser {	
 public:
+	// start parsing by calling parseProgram()
+	// catch errors that reach constructor 
+	// after parsing call displayErrors() to send error messages to stderr
 	Parser(Scanner& scanner, const char * fileName, std::ostream * errStream, std::ostream * ASTStream);
 
-	~Parser() = default;
+	~Parser() noexcept = default;
 
     bool isValid() const noexcept {
         return mErrors.size() == 0;
     }
 
-    size_t getNumErrors() const noexcept {
+    int getNumErrors() const noexcept {
         return mErrors.size();
     }
 protected: 
@@ -52,23 +55,29 @@ protected:
 	std::shared_ptr<ASTStmt> parseStmt();
 
 	// types of statements that parseStmt considers when parsing (in parseStmt.cpp)
-	std::shared_ptr<ASTStmt> parseAssignStmt();
 	std::shared_ptr<ASTIfStmt> parseIfStmt();
 	std::shared_ptr<ASTForStmt> parseForStmt();
 	std::shared_ptr<ASTWhileStmt> parseWhileStmt();
 	std::shared_ptr<ASTReturnStmt> parseReturnStmt();
 	std::shared_ptr<ASTExprStmt> parseExprStmt();
 	std::shared_ptr<ASTNullStmt> parseNullStmt();
-	std::shared_ptr<ASTCompoundStmt> parseCompoundStmt(bool isFuncBody = false);
+	std::shared_ptr<ASTCompoundStmt> parseCompoundStmt();
 
 	// expressions (in parseExpr.cpp)
 	std::shared_ptr<ASTExpr> parseExpr();
-	std::shared_ptr<ASTLogicalOr> parseExprPrime(std::shared_ptr<ASTExpr> lhs);
 	
+	// assignExpr (int parseExpr.cpp)
+	std::shared_ptr<ASTExpr> parseAssignExpr();
+	std::shared_ptr<ASTAssignOp> parseAssignExprPrime(std::shared_ptr<ASTExpr> lhs);
+
+	// orTerm (int parseExpr.cpp)
+	std::shared_ptr<ASTExpr> parseOrTerm();
+	std::shared_ptr<ASTLogicalOr> parseOrTermPrime(std::shared_ptr<ASTExpr> lhs);
+
 	// andTerm (in parseExpr.cpp)
 	std::shared_ptr<ASTExpr> parseAndTerm();
 	std::shared_ptr<ASTLogicalAnd> parseAndTermPrime(std::shared_ptr<ASTExpr> lhs);
-	
+
 	// relExpr (in parseExpr.cpp)
 	std::shared_ptr<ASTExpr> parseRelExpr();
 	std::shared_ptr<ASTBinaryCmpOp> parseRelExprPrime(std::shared_ptr<ASTExpr> lhs);
@@ -90,12 +99,13 @@ protected:
 	std::shared_ptr<ASTConstantExpr> parseConstantFactor();
 	std::shared_ptr<ASTStringExpr> parseStringFactor();
 
-	// parseIdentFactor parses id, id [Expr], and id (FunCallArgs)
+	// parseIdentFactor parses id, id [Expr], id (FunCallArgs), id [Expr] (+=, -=, =) Expr, id (+=, -=, =) Expr
 	std::shared_ptr<ASTExpr> parseIdentFactor();
 	std::shared_ptr<ASTExpr> parseIncFactor();
 	std::shared_ptr<ASTExpr> parseDecFactor();
 	std::shared_ptr<ASTExpr> parseAddrOfArrayFactor();
 private:
+	// helper struct for displaying error messages
 	struct Error {
         Error(const std::string& msg, int line, int col)
         : mMsg(msg)
@@ -125,13 +135,13 @@ private:
 	// ostream exceptions should be output to
 	std::ostream * mErrStream;
 
-	// ostream for AST output
+	// ostream for AST/LLVM bitcode output
 	std::ostream * mAstStream;
 	
 	// SymbolTable corresponding to the parsed file
 	SymbolTable mSymbolTable;
 
-	// String table for this file
+	// StringTable for this file
 	StringTable mStrings;
 
 	// tracks the return type of the current function
@@ -142,10 +152,6 @@ private:
 
 	// pointer to root node of our program
 	std::shared_ptr<ASTProg> mRoot;
-
-	// used to resolve AsisgnStmt/Factor ambiguity
-	Identifier * mUnusedIdent;
-	std::shared_ptr<ASTArraySub> mUnusedArray;
     
 	// returns true if we are past last scanned token in vector
 	bool isAtEnd() const noexcept;

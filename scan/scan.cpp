@@ -76,26 +76,9 @@ void Scanner::identifier() noexcept {
 }
 
 void Scanner::character() noexcept {
-    while (peek() != '\'' && !isAtEnd()) {        
-        advance();
-    }
-
-    if (isAtEnd()) {
-        addToken(TokenType::Unknown);
-        return;
-    }
-
-    // the closing '
-    advance();
-
-    // trim the surrounding single quotes
-    addToken(TokenType::CharLit);
-}
-
-void Scanner::string() noexcept { // no support for multi-line strings
     std::string s {""};
 
-    while (peek() != '"' && !isAtEnd()) {   
+    while (peek() != '\'' && !isAtEnd()) {   
         if (peek() == '\\') {
             switch (peekNext()) {
                 case 'n':
@@ -118,6 +101,51 @@ void Scanner::string() noexcept { // no support for multi-line strings
                     advance();
 
                     break;
+                default:
+                    s += '\\';
+                    break;  
+            }
+        } else {
+            if (peek() != '\n') {
+                s += peek();
+            } 
+        }
+
+        advance();
+    }
+
+    if (isAtEnd()) {
+        addToken(TokenType::Unknown);
+        return;
+    }
+
+    // the closing '
+    advance();
+
+    addToken(std::move(s), TokenType::CharLit);
+}
+
+void Scanner::string() noexcept { // no support for multi-line strings
+    std::string s {""};
+
+    while (peek() != '\"' && !isAtEnd()) {   
+        if (peek() == '\\') {
+            switch (peekNext()) {
+                case 'n':
+                    s += '\n';
+                    advance();
+
+                    break;
+                case 't':
+                    s += '\t';
+                    advance();
+
+                    break;
+                case '0':
+                    s += '\0';
+                    advance();
+
+                    break;
                 case '\"':
                     s += '\"';
                     advance();
@@ -128,7 +156,9 @@ void Scanner::string() noexcept { // no support for multi-line strings
                     break;  
             }
         } else {
-            s += peek();
+            if (peek() != '\n') {
+                s += peek();
+            } 
         }
 
         advance();
@@ -142,9 +172,7 @@ void Scanner::string() noexcept { // no support for multi-line strings
     // the closing "
     advance();
 
-    std::cout << s;
-
-    addToken(std::move(s));
+    addToken(std::move(s), TokenType::StringLit);
 }
 
 void Scanner::number() noexcept { // dont allow a leading or trailing decimal point
@@ -168,9 +196,9 @@ void Scanner::addToken(TokenType type) noexcept {
     mTokens.emplace_back(type, std::move(mSource.substr(mStart, mCurrent - mStart)), mLine, mCol - (mCurrent - mStart));
 }
 
-// for strings bc we have to account for escape characters and trim the edge etc
-void Scanner::addToken(std::string&& s) noexcept {
-    mTokens.emplace_back(TokenType::StringLit, std::move(s), mLine, mCol - (mCurrent - mStart));
+// for strings bc we have to account for escape characters  
+void Scanner::addToken(std::string&& s, TokenType type) noexcept {
+    mTokens.emplace_back(type, std::move(s), mLine, mCol - (mCurrent - mStart));
 }
 
 void Scanner::scanTokens() noexcept {

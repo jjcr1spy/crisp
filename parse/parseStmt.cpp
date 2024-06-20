@@ -26,7 +26,7 @@ std::shared_ptr<ASTDecl> Parser::parseDecl() {
 		// set this to @@variable for now we will later change it assuming we parse the identifier properly
 		Identifier * ident = mSymbolTable.getIdentifier("@@variable");
 		
-		// now we MUST get an identifier so go into a try
+		// now we must get an identifier so go into a try
 		try {
 			if (mCurrToken.mType != TokenType::Identifier) {
 				throw ParseExceptMsg("Type must be followed by identifier");
@@ -63,7 +63,7 @@ std::shared_ptr<ASTDecl> Parser::parseDecl() {
                         declType = Type::CharArray;
 					
                         // for character we support both constant size or implict size if it is assigned to a constant string
-                        constExpr = parseConstantFactor();
+						constExpr = parseConstantFactor();
 
                         break;
                     case Type::Double:
@@ -106,11 +106,19 @@ std::shared_ptr<ASTDecl> Parser::parseDecl() {
 				
 			if (peekAndConsume(TokenType::Assign)) {
 				// we do not allow assignment for int arrays
-				if (declType == Type::IntArray) {
-					reportSemantError("crisp does not allow assignment of int array declarations");
-				} else if (declType == Type::DoubleArray) {
-                    reportSemantError("crisp does not allow assignment of double array declarations");
-                }
+				switch (declType) {
+					case Type::IntArray:
+						reportSemantError("crisp does not allow assignment of int array declarations");
+						break;
+					case Type::DoubleArray:
+						reportSemantError("crisp does not allow assignment of double array declarations");
+						break;
+					case Type::CharArray:
+						reportSemantError("crisp does not allow assignment of char array declarations");
+						break;
+					default:
+						break;
+				}
 				
 				assignExpr = parseExpr();
 				if (!assignExpr) {
@@ -176,19 +184,14 @@ std::shared_ptr<ASTStmt> Parser::parseStmt() {
 	std::shared_ptr<ASTStmt> retVal;
 	
     try {
-		// parseAssignStmt must go before parseExprStmt read comments in parseAssignStmt for why
 		if ((retVal = parseCompoundStmt()));
         else if ((retVal = parseForStmt()));
-		else if ((retVal = parseAssignStmt()));
 		else if ((retVal = parseReturnStmt()));
 		else if ((retVal = parseWhileStmt()));
 		else if ((retVal = parseExprStmt()));
 		else if ((retVal = parseNullStmt()));
 		else if ((retVal = parseIfStmt()));
 		else if ((retVal = parseDecl()));
-        else {
-            // NEED TO PARSE EXPR THEN as its in the form expr;
-        }
 	} catch (ParseExcept& e) {
 		reportError(e);
 		
@@ -209,14 +212,12 @@ std::shared_ptr<ASTStmt> Parser::parseStmt() {
 	return retVal;
 }
 
-
-// if the compound statement is a function body then the symbol table scope
-// change will happen at a higher level so it should not happen in parseCompoundStmt
-std::shared_ptr<ASTCompoundStmt> Parser::parseCompoundStmt(bool isFuncBody) {
+// always enter new scope
+std::shared_ptr<ASTCompoundStmt> Parser::parseCompoundStmt() {
 	std::shared_ptr<ASTCompoundStmt> retVal;
 	
 	if (peekAndConsume(TokenType::LBrace)) {
-		if (!isFuncBody) mSymbolTable.enterScope();
+		mSymbolTable.enterScope();
 
 		retVal = std::make_shared<ASTCompoundStmt>();
 
@@ -238,125 +239,9 @@ std::shared_ptr<ASTCompoundStmt> Parser::parseCompoundStmt(bool isFuncBody) {
 			stmt = parseStmt();
 		}
 
-		if (!std::dynamic_pointer_cast<ASTReturnStmt>(lastStmt) && isFuncBody) {
-			if (mCurrReturnType == Type::Void) retVal->addStmt(std::make_shared<ASTReturnStmt>(nullptr));
-			else reportSemantError("crisp requires non-void functions to end with a return");
-		}
-
 		matchToken(TokenType::RBrace);
 
-		if (!isFuncBody) mSymbolTable.exitScope();
-	}
-	
-	return retVal;
-}
-
-std::shared_ptr<ASTStmt> Parser::parseAssignStmt() {
-	std::shared_ptr<ASTStmt> retVal;
-	std::shared_ptr<ASTArraySub> arraySub;
-	
-	if (mCurrToken.mType == TokenType::Identifier) {
-		Identifier * ident = getVariable(mCurrToken.mStr);
-		
-		consumeToken();
-		
-		// now lets see if this is an array subscript
-		if (peekAndConsume(TokenType::LBracket)) {
-			try {
-				std::shared_ptr<ASTExpr> expr = parseExpr();
-
-				if (!expr) {
-					throw ParseExceptMsg("Valid expression required inside [ ]");
-				}
-				
-				arraySub = std::make_shared<ASTArraySub>(*ident, expr);
-			} catch (ParseExcept& e) {
-				// if this expr is bad consume until RBracket
-				reportError(e);
-				
-                consumeUntil(TokenType::RBracket);
-
-				if (mCurrToken.mType == TokenType::EndOfFile) {
-					throw EOFExcept();
-				}
-			}
-			
-			matchToken(TokenType::RBracket);
-		}
-		
-		// just because we got an identifier DOES NOT necessarily mean
-		// this is an assign statement because there is a common left prefix between
-		// AssignStmt and an ExprStmt with statements like:
-		// id ;
-		// id [ Expr ] ;
-		// id ( FuncCallArgs ) ;
-		
-		// so... we see if the next token is a = and if it is then this is
-		// an AssignStmt otherwise we set the "unused" variables
-		// so parseFactor will later find it and be able to match
-
-		int col = mCurrToken.mCol;
-		if (peekAndConsume(TokenType::Assign)) {
-			std::shared_ptr<ASTExpr> expr = parseExpr();
-			
-			if (!expr) {
-				throw ParseExceptMsg("= must be followed by an expression");
-			}
-			
-			// if we matched an array we want to make an array assign stmt
-			if (arraySub) {
-				// make sure the type of this expression matches the declared type
-				Type subType;
-                
-                switch (arraySub->getType()) {
-                    case Type::IntArray:
-                        subType = Type::Int;
-                        break;
-                    case Type::DoubleArray:
-                        subType = Type::Double;
-                        break;
-                    case Type::CharArray:
-                        subType = Type::Char;
-                        break;
-                    default:
-                        break;
-                }
-
-				if (subType != expr->getType()) {
-					// dont do conversion at the moment
-                    std::string err("Cannot assign an expression of type ");
-                    err += getTypeText(expr->getType());
-                    err += " to ";
-                    err += getTypeText(subType);
-
-                    reportSemantError(err, col);
-				}
-
-				retVal = std::make_shared<ASTAssignArrayStmt>(arraySub, expr);
-			} else {
-				// dont do conversion at the moment
-				if (ident->getType() != expr->getType()) {
-					std::string err("Cannot assign an expression of type ");
-					err += getTypeText(expr->getType());
-					err += " to ";
-					err += getTypeText(ident->getType());
-
-					reportSemantError(err, col);
-				}
-
-				if (ident->getType() == Type::DoubleArray || ident->getType() == Type::IntArray || ident->getType() == Type::CharArray) {
-                    reportSemantError("Reassignment of arrays is not allowed", col);
-                }
-
-				retVal = std::make_shared<ASTAssignStmt>(*ident, expr);
-			}
-			
-			matchToken(TokenType::SemiColon);
-		} else {
-			// we either have an unused array or an unused ident
-			if (arraySub) mUnusedArray = arraySub;
-			else mUnusedIdent = ident;
-		}
+		mSymbolTable.exitScope();
 	}
 	
 	return retVal;

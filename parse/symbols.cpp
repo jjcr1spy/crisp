@@ -4,7 +4,7 @@
 #include "symbols.h"
 
 SymbolTable::SymbolTable() noexcept
-: mCurrentScope(nullptr) {
+: mCurrentScope {nullptr} {
 	mCurrentScope = enterScope();
     
 	auto id = createIdentifier("@@function");
@@ -115,7 +115,7 @@ Identifier * SymbolTable::createIdentifier(const std::string& s) noexcept {
     return ident;
 }
 
-Identifier * SymbolTable::getIdentifier(const std::string& s) noexcept {
+Identifier * SymbolTable::getIdentifier(const std::string& s) const noexcept {
     return mCurrentScope->search(s);
 }
 
@@ -133,6 +133,7 @@ void SymbolTable::print(std::ostream& output) const noexcept {
 	if (mCurrentScope) mCurrentScope->print(output);
 }
 
+// delete all allocated ConstStr * using new
 StringTable::~StringTable() noexcept {
 	for (auto i : mStrings) {
 		delete i.second;
@@ -142,14 +143,19 @@ StringTable::~StringTable() noexcept {
 // looks up the requested string in the string table
 // if it exists returns the corresponding ConstStr
 // otherwise constructs a new ConstStr and returns that
-ConstStr * StringTable::getString(std::string& val) noexcept {
-	auto iter = mStrings.find(val);
+ConstStr * StringTable::getString(const std::string& val) noexcept {
+	std::unordered_map<std::string, ConstStr *>::iterator iter = mStrings.find(val);
 
 	if (iter != mStrings.end()) {
 		return iter->second;
 	} else {
-		ConstStr * newStr = new ConstStr(val);
-		mStrings.emplace(val, newStr);
-		return newStr;
+        // result is a pair where first is an iterator to the element and second is a boolean
+        auto result = mStrings.emplace(val, new ConstStr(val));
+        
+        // iterator to the key value pair
+        auto it = result.first;
+
+        // pointer to value in pair
+		return it->second;
 	}
 }

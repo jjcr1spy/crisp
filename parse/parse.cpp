@@ -1,5 +1,6 @@
 #include "parse.h"
 #include <iostream>
+
 Parser::Parser(Scanner& scanner, const char * fileName, std::ostream * errStream, std::ostream * astStream) 
 : mScanner {scanner}
 , mCurrToken {scanner.mTokens[0]}
@@ -9,8 +10,7 @@ Parser::Parser(Scanner& scanner, const char * fileName, std::ostream * errStream
 , mErrStream {errStream}
 , mAstStream {astStream}
 , mCurrReturnType {Type::Void}
-, mNeedPrintf {false}
-, mUnusedIdent {nullptr} {
+, mNeedPrintf {false} {
     try {
 		mRoot = parseProgram();
     } catch (ParseExcept& e) {
@@ -205,11 +205,11 @@ void Parser::consumeUntil(const std::vector<TokenType>& desired) noexcept {
 
 /* 
 --------------------------------------------------------------------------------------------------------------
-methods for recursive descent parsing other are in parseExpr.cpp and parseStmt.cpp 
+methods for recursive descent parsing other methods are in parseExpr.cpp and parseStmt.cpp 
 */
 
 std::shared_ptr<ASTProg> Parser::parseProgram() {
-	// create our base program node.
+	// create our base program node
 	std::shared_ptr<ASTProg> retVal = std::make_shared<ASTProg>();
 	
 	// parse our function 
@@ -368,7 +368,7 @@ std::shared_ptr<ASTFunc> Parser::parseFunction() {
 		// Grab the compound statement for this function
 		std::shared_ptr<ASTCompoundStmt> funcCompoundStmt;
 		try {
-			funcCompoundStmt = parseCompoundStmt(true);
+			funcCompoundStmt = parseCompoundStmt();
 		} catch (ParseExcept& e) {
 			// something bad happened here
 			reportError(e);
@@ -425,11 +425,13 @@ std::shared_ptr<ASTArgDecl> Parser::parseArgDecl() {
 		
 		// set it to the default "error" until we see if this is a new identifier
 		Identifier * ident = mSymbolTable.getIdentifier("@@variable");
+
 		if (mSymbolTable.isDeclaredInScope(mCurrToken.mStr)) {
 			std::string errMsg("Invalid redeclaration of argument '");
 			errMsg += mCurrToken.mStr;
 			errMsg += '\'';
-			// Leave at @@variable
+
+			// leave at @@variable
 		} else {
 			ident = mSymbolTable.createIdentifier(mCurrToken.mStr);
 		}

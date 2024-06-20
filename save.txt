@@ -2,9 +2,71 @@
 #include "../error/parseExcept.h"
 
 std::shared_ptr<ASTExpr> Parser::parseExpr() {
-	std::shared_ptr<ASTExpr> retVal = parseAssignExpr();
+	std::shared_ptr<ASTExpr> retVal;
 	
-	// if retVal is null we did not get a lhs and this is not an expr
+	// we should first get a AndTerm
+	std::shared_ptr<ASTExpr> andTerm = parseAndTerm();
+	
+	// if we did not get an andTerm then this is not an expr
+	if (andTerm) {
+		retVal = andTerm;
+		
+        // check if this is followed by an op (optional)
+		std::shared_ptr<ASTLogicalOr> exprPrime = parseExprPrime(retVal);
+		
+		if (exprPrime) {
+			// if we got a exprPrime return this instead of just term
+			retVal = exprPrime;
+		}
+	}
+	
+	return retVal;
+}
+
+std::shared_ptr<ASTLogicalOr> Parser::parseExprPrime(std::shared_ptr<ASTExpr> lhs) {
+	std::shared_ptr<ASTLogicalOr> retVal;
+	
+	// must be ||
+	if (mCurrToken.mType == TokenType::Or) {
+		// make the binary cmp op
+		TokenType op = mCurrToken.mType;
+
+		retVal = std::make_shared<ASTLogicalOr>();
+
+		int col = mCurrToken.mCol;
+
+		consumeToken();
+		
+		// set the lhs to our parameter
+		retVal->setLHS(lhs);
+		
+		// we MUST get an andTerm as the RHS of this operand
+		std::shared_ptr<ASTExpr> rhs = parseAndTerm();
+		
+        if (!rhs) {
+			throw OperandMissing(op);
+		}
+		
+		retVal->setRHS(rhs);
+		
+		// finalize op
+		if (!retVal->finalizeOp()) {
+			std::string err("Cannot perform op between type ");
+			err += getTypeText(lhs->getType());
+			err += " and ";
+			err += getTypeText(rhs->getType());
+
+			reportSemantError(err, col);
+		}
+
+		// see comment in parseTermPrime if you are confused by this
+		std::shared_ptr<ASTLogicalOr> exprPrime = parseExprPrime(retVal);
+
+		if (exprPrime) {
+			retVal = exprPrime;
+		}
+	}
+	
 	return retVal;
 }
 
@@ -12,7 +74,7 @@ std::shared_ptr<ASTExpr> Parser::parseAssignExpr() {
 	std::shared_ptr<ASTExpr> retVal;
 	std::shared_ptr<ASTAssignOp> prime;
 
-	std::shared_ptr<ASTExpr> v = parseOrTerm();
+	std::shared_ptr<ASTExpr> v = parseTerm();
 	if (v) {
 		retVal = v;
 		
@@ -28,86 +90,9 @@ std::shared_ptr<ASTAssignOp> Parser::parseAssignExprPrime(std::shared_ptr<ASTExp
 	std::shared_ptr<ASTAssignOp> retVal;
 	std::shared_ptr<ASTAssignOp> recursion;
 	std::shared_ptr<ASTExpr> rhs;
-	
+
 	if (peekIsOneOf({TokenType::Assign, TokenType::DecAssign, TokenType::IncAssign})) {
-		TokenType token = mCurrToken.mType;
 
-		retVal = std::make_shared<ASTAssignOp>(token);
-
-		int col = mCurrToken.mCol;
-
-		consumeToken();
-
-		retVal->setLHS(lhs);
-
-		rhs = parseNumExpr();
-
-		if (!rhs) throw OperandMissing(token);
-
-		retVal->setRHS(rhs);
-
-		if (!retVal->finalizeOp()) {
-			std::string err("L-value required as left operand of assignment ");
-
-			reportSemantError(err, col);
-		}
-
-		recursion = parseAssignExprPrime(retVal);
-
-		if (recursion) retVal = recursion;
-	}
-	
-	return retVal;
-}
-
-std::shared_ptr<ASTExpr> Parser::parseOrTerm() {
-	std::shared_ptr<ASTExpr> retVal;
-	std::shared_ptr<ASTLogicalAnd> prime;
-
-	// this should not directly check factor but instead implement the proper grammar rule
-	std::shared_ptr<ASTExpr> v = parseAndTerm();
-	if (v) {
-		retVal = v;
-		prime = parseAndTermPrime(v);
-		
-        if (prime) retVal = prime;
-	}
-	
-	return retVal;
-}
-
-std::shared_ptr<ASTLogicalOr> Parser::parseOrTermPrime(std::shared_ptr<ASTExpr> lhs) {
-	std::shared_ptr<ASTLogicalOr> retVal;
-	std::shared_ptr<ASTLogicalOr> recursion;
-	std::shared_ptr<ASTExpr> rhs;
-
-	if (mCurrToken.mType == TokenType::Or) {
-		retVal = std::make_shared<ASTLogicalOr>();
-
-		retVal->setLHS(lhs);
-
-		int col = mCurrToken.mCol;
-
-		consumeToken();
-
-		rhs = parseRelExpr();
-
-		if (!rhs) throw OperandMissing(TokenType::Or);
-		
-        retVal->setRHS(rhs);
-
-		if (!retVal->finalizeOp()) {
-			std::string err("Cannot perform op between type ");
-			err += getTypeText(lhs->getType());
-			err += " and ";
-			err += getTypeText(rhs->getType());
-
-			reportSemantError(err, col);
-		}
-
-		recursion = parseOrTermPrime(retVal);
-
-		if (recursion) retVal = recursion;
 	}
 
 	return retVal;
@@ -351,6 +336,10 @@ std::shared_ptr<ASTExpr> Parser::parseValue() {
 std::shared_ptr<ASTExpr> Parser::parseFactor() {
 	std::shared_ptr<ASTExpr> retVal;
 	
+	// try parse identifier factors FIRST so
+	// we make sure to consume the mUnusedIdents
+	// before we try any other rules
+	
 	if ((retVal = parseIdentFactor()));
 	else if ((retVal = parseConstantFactor()));
 	else if ((retVal = parseStringFactor()));
@@ -404,53 +393,60 @@ std::shared_ptr<ASTStringExpr> Parser::parseStringFactor() {
 // id
 // id [ Expr ]
 // id ( FuncCallArgs )
-// id [Expr] (+=, -=, =) Expr
-// id (+=, -=, =) Expr
 std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
-	std::shared_ptr<ASTArrayExpr> arraySub;
 	std::shared_ptr<ASTExpr> retVal;
-
 	if (mCurrToken.mType == TokenType::Identifier) {
 		Identifier * ident = getVariable(mCurrToken.mStr);
-		
-		int col = mCurrToken.mCol; 
-
 		consumeToken();
-
-		if (peekAndConsume(TokenType::LBracket)) {
+		
+		// we need to look ahead and see if this is an array
+		// or function call reference since id is a common left prefix
+		if (mCurrToken.mType == TokenType::LBracket) {
+			// heck to make sure this is an array
 			if (ident->getType() != Type::IntArray && ident->getType() != Type::CharArray && !ident->isDummy()) {
 				std::string err("'");
 				err += ident->getName();
 				err += "' is not an array";
 
-				reportSemantError(err, col);
-				
+				reportSemantError(err);
+
 				consumeUntil(TokenType::RBracket);
 
-				if (mCurrToken.mType == TokenType::EndOfFile) throw EOFExcept();
-
+				if (mCurrToken.mType == TokenType::EndOfFile) {
+					throw EOFExcept();
+				}
+				
 				matchToken(TokenType::RBracket);
 				
-				// return error variable
+				// just return our error variable
 				retVal = std::make_shared<ASTIdentExpr>(*mSymbolTable.getIdentifier("@@variable"));
 			} else {
+				consumeToken();
+
 				try {
 					std::shared_ptr<ASTExpr> expr = parseExpr();
+
+					if (!expr) {
+						throw ParseExceptMsg("Valid expression required inside [ ]");
+					}
 					
-					if (!expr) throw ParseExceptMsg("Valid expression required inside [ ].");
-					
-					arraySub = std::make_shared<ASTArrayExpr>(*ident, expr);
+					std::shared_ptr<ASTArraySub> array = std::make_shared<ASTArraySub>(*ident, expr);
+
+					retVal = std::make_shared<ASTArrayExpr>(array);
 				} catch (ParseExcept& e) {
+					// if this expr is bad consume until RBracket
 					reportError(e);
 
 					consumeUntil(TokenType::RBracket);
 
-					if (mCurrToken.mType == TokenType::EndOfFile) throw EOFExcept();
+					if (mCurrToken.mType == TokenType::EndOfFile) {
+						throw EOFExcept();
+					}
 				}
 				
-				matchToken(TokenType::RBracket);	
+				matchToken(TokenType::RBracket);
 			}
-		} else if (peekAndConsume(TokenType::LParen)) {
+		} else if (mCurrToken.mType == TokenType::LParen) {
 			// check to make sure this is a function
 			if (ident->getType() != Type::Function && !ident->isDummy()) {
 				std::string err("'");
@@ -461,13 +457,17 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 
 				consumeUntil(TokenType::RParen);
 
-				if (mCurrToken.mType == TokenType::EndOfFile) throw EOFExcept();
+				if (mCurrToken.mType == TokenType::EndOfFile) {
+					throw EOFExcept();
+				}
 				
 				matchToken(TokenType::RParen);
 				
 				// just return our error variable
 				retVal = std::make_shared<ASTIdentExpr>(*mSymbolTable.getIdentifier("@@variable"));
-			} else {				
+			} else {
+				consumeToken();
+				
 				// a function call can have zero or more arguments
 				std::shared_ptr<ASTFuncExpr> funcCall = std::make_shared<ASTFuncExpr>(*ident);
 				retVal = funcCall;
@@ -483,35 +483,36 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 					while (arg) {
 						// check for validity of this argument (for non-dummy functions)
 						if (!ident->isDummy()) {
-							// special case for "printf" since we dont make a node for it
+							// special case for "printf" since we don't make a node for it
 							if (ident->getName() == "printf") {
 								mNeedPrintf = true;
-
 								if (currArg == 1 && arg->getType() != Type::CharArray) {
 									reportSemantError("The first parameter to printf must be a char[]");
 								}
-							} else if (currArg > func->getNumArgs()) {
-									std::string err("Function ");
-									err += ident->getName();
-									err += " takes only ";
+							}
+						} else if (currArg > static_cast<int>(func->getNumArgs())) {
+								std::string err("Function ");
+								err += ident->getName();
+								err += " takes only ";
 
-									std::ostringstream ss;
-									ss << func->getNumArgs();
-									err += ss.str();
-									err += " arguments";
+								std::ostringstream ss;
+								ss << func->getNumArgs();
 
-									reportSemantError(err, col);
-							} else if (!func->checkArgType(currArg, arg->getType())) {
-								// no conversions at the moment
+								err += ss.str();
+								err += " arguments";
+
+								reportSemantError(err, col);
+						} else if (!func->checkArgType(currArg, arg->getType())) {
+							if (arg->getType() != func->getArgType(currArg)) {
 								std::string err("Expected expression of type ");
 								err += getTypeText(func->getArgType(currArg));
-
+								
 								reportSemantError(err, col);
 							}
 						}
 						
 						funcCall->addArg(arg);
-					
+						
 						currArg++;
 						
 						if (peekAndConsume(TokenType::Comma)) {
@@ -534,7 +535,7 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 				
 				// now make sure we have the correct number of arguments
 				if (!ident->isDummy()) {
-					// special case for printf
+					// Special case for printf
 					if (ident->getName() == "printf") {
 						if (funcCall->getNumArgs() == 0) {
 							reportSemantError("printf requires a minimum of one argument");
@@ -608,7 +609,7 @@ std::shared_ptr<ASTExpr> Parser::parseAddrOfArrayFactor() {
 		
         matchToken(TokenType::RBracket);
 
-		retVal = std::make_shared<ASTAddrOfArray>(std::make_shared<ASTArrayExpr>(*ident, expr));
+		retVal = std::make_shared<ASTAddrOfArray>(std::make_shared<ASTArraySub>(*ident, expr));
 	}
 	
 	return retVal;

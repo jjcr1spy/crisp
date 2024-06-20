@@ -71,15 +71,6 @@ void ASTArgDecl::printNode(std::ostream& output, int depth) const noexcept {
     output << mIdent.getName() << std::endl;
 }
 
-// ASTArraySub
-void ASTArraySub::printNode(std::ostream& output, int depth) const noexcept {
-    for (int i = 0; i < depth; i++) {
-        output << "---";
-    }
-    output << "ArraySub: " << mIdent.getName() << std::endl;
-    mExpr->printNode(output, depth + 1);
-}
-
 // ASTBadExpr
 void ASTBadExpr::printNode(std::ostream& output, int depth) const noexcept {
     for (int i = 0; i < depth; i++) {
@@ -161,13 +152,25 @@ void ASTIdentExpr::printNode(std::ostream& output, int depth) const noexcept {
     output << "IdentExpr: " << mIdent.getName() << std::endl;
 }
 
+//ASTAssignOp
+void ASTAssignOp::printNode(std::ostream& output, int depth) const noexcept {
+    for (int i = 0; i < depth; i++) {
+        output << "---";
+    }
+    
+    output << "AssignOp " << Token::mToString[mOp] << ':' << std::endl;
+    mLHS->printNode(output, depth + 1);
+    mRHS->printNode(output, depth + 1);
+}
+
 // ASTArrayExpr
 void ASTArrayExpr::printNode(std::ostream& output, int depth) const noexcept {
     for (int i = 0; i < depth; i++) {
         output << "---";
     }
-    output << "ArrayExpr: " << std::endl;
-    mArray->printNode(output, depth + 1);
+
+    output << "ArrayExpr: " << mIdent.getName() << std::endl;
+    mExpr->printNode(output, depth + 1);
 }
 
 // ASTFuncExpr
@@ -257,31 +260,13 @@ void ASTReturnStmt::printNode(std::ostream& output, int depth) const noexcept {
     for (int i = 0; i < depth; i++) {
         output << "---";
     }
+
     if (!mExpr) {
         output << "ReturnStmt: (empty)" << std::endl;
     } else {
         output << "ReturnStmt:" << std::endl;
         mExpr->printNode(output, depth + 1);
     }
-}
-
-// ASTAssignStmt
-void ASTAssignStmt::printNode(std::ostream& output, int depth) const noexcept {
-    for (int i = 0; i < depth; i++) {
-        output << "---";
-    }
-    output << "AssignStmt: " << mIdent.getName() << std::endl;
-    mExpr->printNode(output, depth + 1);
-}
-
-// ASTAssignArrayStmt
-void ASTAssignArrayStmt::printNode(std::ostream& output, int depth) const noexcept {
-    for (int i = 0; i < depth; i++) {
-        output << "---";
-    }
-    output << "AssignArrayStmt:" << std::endl;
-    mArray->printNode(output, depth + 1);
-    mExpr->printNode(output, depth + 1);
 }
 
 // ASTIfStmt

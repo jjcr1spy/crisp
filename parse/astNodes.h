@@ -45,14 +45,14 @@ public:
 
     void addArg(std::shared_ptr<ASTArgDecl> arg) noexcept;
     void setBody(std::shared_ptr<ASTCompoundStmt> body) noexcept;
-    bool checkArgType(unsigned int argNum, Type type) const noexcept;
-    Type getArgType(unsigned int argNum) const noexcept;
+    bool checkArgType(int argNum, Type type) const noexcept;
+    Type getArgType(int argNum) const noexcept;
 
     Type getReturnType() const noexcept {
         return mReturnType;
     }
 
-    size_t getNumArgs() const noexcept {
+    int getNumArgs() const noexcept {
         return mArgs.size();
     }
 protected:
@@ -82,23 +82,6 @@ private:
 	Identifier& mIdent;
 };
 
-// array subscript helper node
-class ASTArraySub : public ASTNode {
-public:
-	ASTArraySub(Identifier& ident, std::shared_ptr<ASTExpr> expr) noexcept
-	: mIdent(ident)
-	, mExpr(expr) { }
-	
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-
-	Type getType() const noexcept {
-		return mIdent.getType();
-	}	
-private:
-	Identifier& mIdent;
-	std::shared_ptr<ASTExpr> mExpr;
-};
-
 /*
 ------------------------------------------------------
 below are statements 
@@ -124,36 +107,11 @@ class ASTCompoundStmt : public ASTStmt {
 public:
 	void addDecl(std::shared_ptr<ASTDecl> decl) noexcept;
 	void addStmt(std::shared_ptr<ASTStmt> stmt) noexcept;
-	std::shared_ptr<ASTStmt> getLastStmt() noexcept;
 
 	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::vector<std::shared_ptr<ASTDecl>> mDecls;
 	std::vector<std::shared_ptr<ASTStmt>> mStmts;
-};
-
-class ASTAssignStmt : public ASTStmt {
-public:
-	ASTAssignStmt(Identifier& ident, std::shared_ptr<ASTExpr> expr) noexcept
-	: mIdent(ident)
-	, mExpr(expr) { }
-
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-private:
-	Identifier& mIdent;
-	std::shared_ptr<ASTExpr> mExpr;
-};
-
-class ASTAssignArrayStmt : public ASTStmt {
-public:
-	ASTAssignArrayStmt(std::shared_ptr<ASTArraySub> array, std::shared_ptr<ASTExpr> expr) noexcept
-	: mArray(array)
-	, mExpr(expr) { }
-
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-private:
-	std::shared_ptr<ASTArraySub> mArray;
-	std::shared_ptr<ASTExpr> mExpr;
 };
 
 class ASTIfStmt : public ASTStmt {
@@ -244,6 +202,60 @@ protected:
 class ASTBadExpr : public ASTExpr {
 public:
 	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+};
+
+// id [ Expr ]
+class ASTArrayExpr : public ASTExpr {
+public:
+	ASTArrayExpr(Identifier& ident, std::shared_ptr<ASTExpr> expr) noexcept
+	: mExpr {expr}
+	, mIdent {ident} {
+		switch (ident.getType()) {
+			case (Type::CharArray):
+				mType = Type::CharArray;
+				break;
+			case (Type::DoubleArray):
+				mType = Type::DoubleArray;
+				break;
+			case (Type::IntArray):
+				mType = Type::IntArray;
+				break;
+			default:
+				break;
+		}
+	}
+
+	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+private:
+	std::shared_ptr<ASTExpr> mExpr;
+	Identifier& mIdent;
+};
+
+class ASTAssignOp : public ASTExpr {
+public:
+	ASTAssignOp(TokenType t) noexcept
+	: mOp {t} { }
+
+	// we need to be able to manually set the lhs/rhs
+	void setLHS(std::shared_ptr<ASTExpr> lhs) noexcept {
+		mLHS = lhs;
+	}
+
+	void setRHS(std::shared_ptr<ASTExpr> rhs) noexcept {
+		mRHS = rhs;
+	}
+
+	// finalize the op
+	// call this after both lhs/rhs are set and
+	// it will evaluate the type of the expression
+	// returns false if this is an invalid operation
+	bool finalizeOp() noexcept;	
+
+	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+private:
+	TokenType mOp;
+	std::shared_ptr<ASTExpr> mLHS;
+	std::shared_ptr<ASTExpr> mRHS;
 };
 
 class ASTLogicalAnd : public ASTExpr {
@@ -358,31 +370,6 @@ private:
 	std::shared_ptr<ASTExpr> mExpr;
 };
 
-// id [ Expr ]
-class ASTArrayExpr : public ASTExpr {
-public:
-	ASTArrayExpr(std::shared_ptr<ASTArraySub> array) noexcept
-	: mArray(array) {
-		switch (mArray->getType()) {
-			case Type::IntArray:
-				mType = Type::Int;
-				break;
-			case Type::DoubleArray:
-				mType = Type::Double;
-				break;
-			case Type::CharArray:
-				mType = Type::Char;
-				break;
-			default:
-				break;
-		}
-	}
-
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-private:
-	std::shared_ptr<ASTArraySub> mArray;
-};
-
 // id ( FuncCallArgs )
 class ASTFuncExpr : public ASTExpr {
 public:
@@ -395,7 +382,7 @@ public:
 		}
 	}
 	
-	size_t getNumArgs() const noexcept {
+	int getNumArgs() const noexcept {
 		return mArgs.size();
 	}
 
@@ -435,19 +422,22 @@ private:
 
 class ASTAddrOfArray : public ASTExpr {
 public:
-	ASTAddrOfArray(std::shared_ptr<ASTArraySub> array) noexcept
+	ASTAddrOfArray(std::shared_ptr<ASTArrayExpr> array) noexcept
 	: mArray(array) {
 		mType = mArray->getType();
 	}
 
 	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
-	std::shared_ptr<ASTArraySub> mArray;
+	std::shared_ptr<ASTArrayExpr> mArray;
 };
 
 class ASTConstantExpr : public ASTExpr {
 public:
-	ASTConstantExpr(const std::string& constStr);
+	ASTConstantExpr(const std::string& constStr)
+    : mValue(std::stoi(constStr)) {
+		mType = Type::Int;
+	}
 	
 	int getValue() const noexcept {
 		return mValue;
@@ -493,9 +483,12 @@ private:
 
 class ASTStringExpr : public ASTExpr {
 public:
-	ASTStringExpr(const std::string& str, StringTable& tbl);
+	ASTStringExpr(std::string& str, StringTable& tbl)
+	: mString {tbl.getString(str)} {
+		mType = Type::CharArray;
+	}
 
-	size_t getLength() const noexcept {
+	int getLength() const noexcept {
 		return mString->getText().size();
 	}	
 
@@ -515,77 +508,5 @@ public:
 private:
 	Identifier& mIdent;
 };
-
-// class ASTIdentExpr : public ASTExpr {
-// // a
-// public:
-// };
-
-// class ASTArrExpr : public ASTExpr {
-// // id [ Expr ]
-// public:
-// };
-
-// class ASTAssignExpr : public ASTExpr {
-// // =, +=, -= ex: x = 5; or x[4] += 1; 
-// public:
-// };
-
-// class ASTFuncExpr : public ASTExpr {
-// // id ( FuncCallArgs )
-
-// public:
-// };
-
-// class ASTAddrOfArray : public ASTExpr {
-// // &arr
-// public:
-// };
-
-// class ASTUnaryArithOp : public ASTExpr { 
-// // ++, -- 
-// public:
-// };
-
-// class ASTUnaryLogicalOp : public ASTExpr {
-// // !
-// public:
-// };
-
-// class ASTBinaryLogicalOp : public ASTExpr { 
-// // &&, ||
-// public:
-// };
-
-// class ASTBinaryRelOp : public ASTExpr { 
-// // ==, !=, <, <=, >, >=
-// public:
-// };
-
-// class ASTBinaryArithOp : public ASTExpr { 
-// // +, -, *, /, %, 
-// public:
-// };
-
-// class ASTDoubleLit : public ASTExpr {
-//     double Val;
-
-// public:
-//     ASTDoubleLit(double Val) : Val(Val) {}
-// };
-
-// class ASTCharLit : public ASTExpr {
-//     char Val;
-
-// public:
-//     ASTCharLit(char Val) : Val(Val) {}
-// };
-
-// class ASTIntLit : public ASTExpr {
-//     int Val;
-
-// public:
-//     ASTIntLit(int Val) : Val(Val) {}
-// };
 
 #endif
