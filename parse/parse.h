@@ -9,18 +9,11 @@ defines the parser i.e. class Parser which is used for recursive descent parsing
 #include <fstream> 
 #include <vector> 
 
-// for semantic analysis i.e. classes SymbolTable ScopeTable Identifier
 #include "symbols.h"
-
-// for error messages 
+#include "astNodes.h"
 #include "../error/parseExcept.h"
-
-// for scanner/tokens
 #include "../scan/token.h"
 #include "../scan/scan.h"
-
-// for all nodes used in parsing
-#include "astNodes.h"
 
 class Parser {	
 public:
@@ -61,7 +54,10 @@ protected:
 	std::shared_ptr<ASTReturnStmt> parseReturnStmt();
 	std::shared_ptr<ASTExprStmt> parseExprStmt();
 	std::shared_ptr<ASTNullStmt> parseNullStmt();
-	std::shared_ptr<ASTCompoundStmt> parseCompoundStmt();
+	// if the compound statement is a function body then the scope
+	// change will happen at a higher level so it should not happen in
+	// parseCompoundStmt
+	std::shared_ptr<ASTCompoundStmt> parseCompoundStmt(bool isFuncBody = false);
 
 	// expressions (in parseExpr.cpp)
 	std::shared_ptr<ASTExpr> parseExpr();
@@ -97,7 +93,9 @@ protected:
 	std::shared_ptr<ASTExpr> parseFactor();
 	std::shared_ptr<ASTExpr> parseParenFactor();
 	std::shared_ptr<ASTConstantExpr> parseConstantFactor();
+	std::shared_ptr<ASTCharExpr> parseCharFactor();
 	std::shared_ptr<ASTStringExpr> parseStringFactor();
+	std::shared_ptr<ASTDoubleExpr> parseDoubleFactor();
 
 	// parseIdentFactor parses id, id [Expr], id (FunCallArgs), id [Expr] (+=, -=, =) Expr, id (+=, -=, =) Expr
 	std::shared_ptr<ASTExpr> parseIdentFactor();
@@ -142,7 +140,7 @@ private:
 	SymbolTable mSymbolTable;
 
 	// StringTable for this file
-	StringTable mStrings;
+	StringTable mStringTable;
 
 	// tracks the return type of the current function
 	Type mCurrReturnType;

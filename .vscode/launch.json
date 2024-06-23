@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/crisp",
-            "args": ["./test/emit02.usc"],
+            "args": ["./test/parse01e.usc"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

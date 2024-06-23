@@ -1,5 +1,4 @@
 #include <iostream> 
-
 #include "token.h"
 
 std::unordered_map<TokenType, std::string> Token::mToString = {

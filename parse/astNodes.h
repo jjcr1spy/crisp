@@ -7,8 +7,6 @@ defines all AST nodes used in the recursive descent parsing
 
 #include <memory>
 #include <vector>
-
-// for semantic analysis i.e classes SymbolTable ScopeTable Identifier
 #include "symbols.h"
 #include "../scan/token.h"
 
@@ -84,7 +82,7 @@ private:
 
 /*
 ------------------------------------------------------
-below are statements 
+statements 
 */ 
 
 class ASTStmt : public ASTNode {
@@ -181,7 +179,7 @@ public:
 
 /*
 ------------------------------------------------------
-below are expressions
+expressions
 */ 
 
 class ASTExpr : public ASTNode {
@@ -193,15 +191,19 @@ public:
 		return mType;
 	}
 protected:
-	// all expressions have a type (used for semantic evaluation)
 	Type mType;
 };
 
-// bad expr is returned if a () subexpr fails so at least
-// further ops will recognize it as a potentially valid op
-class ASTBadExpr : public ASTExpr {
+class ASTIdentExpr : public ASTExpr {
 public:
+	ASTIdentExpr(Identifier& ident) noexcept
+	: mIdent(ident) {
+		mType = mIdent.getType();
+	}
+
 	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+private:
+	Identifier& mIdent;
 };
 
 // id [ Expr ]
@@ -211,14 +213,14 @@ public:
 	: mExpr {expr}
 	, mIdent {ident} {
 		switch (ident.getType()) {
-			case (Type::CharArray):
-				mType = Type::CharArray;
+			case Type::CharArray:
+				mType = Type::Char;
 				break;
-			case (Type::DoubleArray):
-				mType = Type::DoubleArray;
+			case Type::DoubleArray:
+				mType = Type::Double;
 				break;
-			case (Type::IntArray):
-				mType = Type::IntArray;
+			case Type::IntArray:
+				mType = Type::Int;
 				break;
 			default:
 				break;
@@ -256,6 +258,30 @@ private:
 	TokenType mOp;
 	std::shared_ptr<ASTExpr> mLHS;
 	std::shared_ptr<ASTExpr> mRHS;
+};
+
+// id ( FuncCallArgs )
+class ASTFuncExpr : public ASTExpr {
+public:
+	ASTFuncExpr(Identifier& ident) noexcept
+	: mIdent(ident) {
+		if (mIdent.getFunction()) {
+			mType = mIdent.getFunction()->getReturnType();
+		} else {
+			mType = Type::Void;
+		}
+	}
+	
+	int getNumArgs() const noexcept {
+		return mArgs.size();
+	}
+
+	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+
+	void addArg(std::shared_ptr<ASTExpr> arg) noexcept;	
+private:
+	Identifier& mIdent;
+	std::vector<std::shared_ptr<ASTExpr>> mArgs;
 };
 
 class ASTLogicalAnd : public ASTExpr {
@@ -370,30 +396,6 @@ private:
 	std::shared_ptr<ASTExpr> mExpr;
 };
 
-// id ( FuncCallArgs )
-class ASTFuncExpr : public ASTExpr {
-public:
-	ASTFuncExpr(Identifier& ident) noexcept
-	: mIdent(ident) {
-		if (mIdent.getFunction()) {
-			mType = mIdent.getFunction()->getReturnType();
-		} else {
-			mType = Type::Void;
-		}
-	}
-	
-	int getNumArgs() const noexcept {
-		return mArgs.size();
-	}
-
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-
-	void addArg(std::shared_ptr<ASTExpr> arg) noexcept;	
-private:
-	Identifier& mIdent;
-	std::vector<std::shared_ptr<ASTExpr>> mArgs;
-};
-
 // ++id
 class ASTIncExpr : public ASTExpr {
 public:
@@ -432,58 +434,9 @@ private:
 	std::shared_ptr<ASTArrayExpr> mArray;
 };
 
-class ASTConstantExpr : public ASTExpr {
-public:
-	ASTConstantExpr(const std::string& constStr)
-    : mValue(std::stoi(constStr)) {
-		mType = Type::Int;
-	}
-	
-	int getValue() const noexcept {
-		return mValue;
-	}
-
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-private:
-	int mValue;
-};
-
-class ASTIntExpr : public ASTExpr {
-public:
-	ASTIntExpr(const std::string& constStr);
-	
-	int getValue() const noexcept {
-		return mValue;
-	}
-private:
-	int mValue;
-};
-
-class ASTDoubleExpr : public ASTExpr {
-public:
-	ASTDoubleExpr(const std::string& constStr);
-	
-	double getValue() const noexcept {
-		return mValue;
-	}
-private:
-	double mValue;
-};
-
-class ASTCharExpr : public ASTExpr {
-public:
-	ASTCharExpr(const std::string& constStr);
-	
-	char getValue() const noexcept {
-		return mValue;
-	}
-private:
-	char mValue;
-};
-
 class ASTStringExpr : public ASTExpr {
 public:
-	ASTStringExpr(std::string& str, StringTable& tbl)
+	ASTStringExpr(std::string& str, StringTable& tbl) noexcept
 	: mString {tbl.getString(str)} {
 		mType = Type::CharArray;
 	}
@@ -497,16 +450,52 @@ private:
 	ConstStr * mString;
 };
 
-class ASTIdentExpr : public ASTExpr {
+class ASTConstantExpr : public ASTExpr {
 public:
-	ASTIdentExpr(Identifier& ident) noexcept
-	: mIdent(ident) {
-		mType = mIdent.getType();
+	ASTConstantExpr(const std::string& constStr) noexcept
+    : mValue {std::stoi(constStr)} {
+		mType = Type::Int;
+	}
+	
+	int getValue() const noexcept {
+		return mValue;
 	}
 
 	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
-	Identifier& mIdent;
+	int mValue;
+};
+
+class ASTDoubleExpr : public ASTExpr {
+public:
+	ASTDoubleExpr(const std::string& constStr)
+	: mValue {std::stod(constStr)} {
+		mType = Type::Double;
+	}
+	
+	double getValue() const noexcept {
+		return mValue;
+	}
+
+	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+private:
+	double mValue;
+};
+
+class ASTCharExpr : public ASTExpr {
+public:
+	ASTCharExpr(const std::string& constStr) 
+	: mValue {constStr[0]}{
+		mType = Type::Char;
+	}
+	
+	char getValue() const noexcept {
+		return mValue;
+	}
+
+	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+private:
+	char mValue;
 };
 
 #endif

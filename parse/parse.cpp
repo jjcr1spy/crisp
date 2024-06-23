@@ -1,5 +1,5 @@
-#include "parse.h"
 #include <iostream>
+#include "parse.h"
 
 Parser::Parser(Scanner& scanner, const char * fileName, std::ostream * errStream, std::ostream * astStream) 
 : mScanner {scanner}
@@ -9,6 +9,8 @@ Parser::Parser(Scanner& scanner, const char * fileName, std::ostream * errStream
 , mFileName {fileName}
 , mErrStream {errStream}
 , mAstStream {astStream}
+, mSymbolTable {}
+, mStringTable {}
 , mCurrReturnType {Type::Void}
 , mNeedPrintf {false} {
     try {
@@ -189,6 +191,7 @@ void Parser::consumeUntil(TokenType desired) noexcept {
 	}
 }
 
+// same thing as above but matches w a list of TokenTypes
 void Parser::consumeUntil(const std::vector<TokenType>& desired) noexcept {
 	if (mCurrToken.mType == TokenType::EndOfFile) return;
 	
@@ -205,7 +208,7 @@ void Parser::consumeUntil(const std::vector<TokenType>& desired) noexcept {
 
 /* 
 --------------------------------------------------------------------------------------------------------------
-methods for recursive descent parsing other methods are in parseExpr.cpp and parseStmt.cpp 
+methods for recursive descent parsing other methods are in parse.cpp
 */
 
 std::shared_ptr<ASTProg> Parser::parseProgram() {
@@ -368,7 +371,7 @@ std::shared_ptr<ASTFunc> Parser::parseFunction() {
 		// Grab the compound statement for this function
 		std::shared_ptr<ASTCompoundStmt> funcCompoundStmt;
 		try {
-			funcCompoundStmt = parseCompoundStmt();
+			funcCompoundStmt = parseCompoundStmt(true);
 		} catch (ParseExcept& e) {
 			// something bad happened here
 			reportError(e);

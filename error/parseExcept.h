@@ -19,7 +19,6 @@ now c inherits a from b but only one instance of a is used resolving the ambigui
 #include <exception>
 #include <sstream>
 #include <string>
-
 #include "../scan/token.h"
 
 class ParseExcept : public virtual std::exception {

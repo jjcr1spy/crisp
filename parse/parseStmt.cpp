@@ -113,9 +113,6 @@ std::shared_ptr<ASTDecl> Parser::parseDecl() {
 					case Type::DoubleArray:
 						reportSemantError("crisp does not allow assignment of double array declarations");
 						break;
-					case Type::CharArray:
-						reportSemantError("crisp does not allow assignment of char array declarations");
-						break;
 					default:
 						break;
 				}
@@ -192,6 +189,7 @@ std::shared_ptr<ASTStmt> Parser::parseStmt() {
 		else if ((retVal = parseNullStmt()));
 		else if ((retVal = parseIfStmt()));
 		else if ((retVal = parseDecl()));
+		else if ((retVal = parseExprStmt()));
 	} catch (ParseExcept& e) {
 		reportError(e);
 		
@@ -213,35 +211,25 @@ std::shared_ptr<ASTStmt> Parser::parseStmt() {
 }
 
 // always enter new scope
-std::shared_ptr<ASTCompoundStmt> Parser::parseCompoundStmt() {
+std::shared_ptr<ASTCompoundStmt> Parser::parseCompoundStmt(bool isFuncBody) {
 	std::shared_ptr<ASTCompoundStmt> retVal;
 	
 	if (peekAndConsume(TokenType::LBrace)) {
-		mSymbolTable.enterScope();
+		if (!isFuncBody) mSymbolTable.enterScope();
 
 		retVal = std::make_shared<ASTCompoundStmt>();
 
-		std::shared_ptr<ASTDecl> decl;
-		decl = parseDecl();
-
-		while (decl != nullptr) {
-			retVal->addDecl(decl);
-			decl = parseDecl();
-		}
-
-        // preserve the last statment for check
-		std::shared_ptr<ASTStmt> stmt, lastStmt; 
+		std::shared_ptr<ASTStmt> stmt; 
 		stmt = parseStmt();
 
 		while (stmt) {
 			retVal->addStmt(stmt);
-			lastStmt = stmt;
 			stmt = parseStmt();
 		}
 
 		matchToken(TokenType::RBrace);
 
-		mSymbolTable.exitScope();
+		if (!isFuncBody) mSymbolTable.exitScope();
 	}
 	
 	return retVal;

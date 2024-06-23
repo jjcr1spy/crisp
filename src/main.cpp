@@ -42,7 +42,7 @@ int main(int argc, char * argv[]) {
         std::ostream * astStream = &std::cout, * errStream = &std::cerr;
 
         // continue w parsing 
-        // print to stdout if specified but only if no parsing errors
+        // print AST to stdout if specified but only if no parsing errors
         Parser parser {scanner, argv[1], errStream, astStream};
 
         // check parsing error count

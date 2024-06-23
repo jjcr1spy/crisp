@@ -30,24 +30,35 @@ std::shared_ptr<ASTAssignOp> Parser::parseAssignExprPrime(std::shared_ptr<ASTExp
 	std::shared_ptr<ASTExpr> rhs;
 	
 	if (peekIsOneOf({TokenType::Assign, TokenType::DecAssign, TokenType::IncAssign})) {
+		// lhs must be an ident or ident array 
+		std::shared_ptr<ASTArrayExpr> arrExpr = std::dynamic_pointer_cast<ASTArrayExpr>(lhs);
+		std::shared_ptr<ASTIdentExpr> identExpr = std::dynamic_pointer_cast<ASTIdentExpr>(lhs);
+
+		if (!arrExpr && !identExpr) {
+			throw ParseExceptMsg("L-value required as left operand of assignment");
+		}
+
 		TokenType token = mCurrToken.mType;
 
-		retVal = std::make_shared<ASTAssignOp>(token);
-
+		retVal = std::make_shared<ASTAssignOp>(mCurrToken.mType);
+				
 		int col = mCurrToken.mCol;
 
 		consumeToken();
 
 		retVal->setLHS(lhs);
 
-		rhs = parseNumExpr();
+		rhs = parseOrTerm();
 
 		if (!rhs) throw OperandMissing(token);
 
 		retVal->setRHS(rhs);
 
 		if (!retVal->finalizeOp()) {
-			std::string err("L-value required as left operand of assignment ");
+			std::string err("Cannot perform op between type ");
+			err += getTypeText(lhs->getType());
+			err += " and ";
+			err += getTypeText(rhs->getType());
 
 			reportSemantError(err, col);
 		}
@@ -62,13 +73,13 @@ std::shared_ptr<ASTAssignOp> Parser::parseAssignExprPrime(std::shared_ptr<ASTExp
 
 std::shared_ptr<ASTExpr> Parser::parseOrTerm() {
 	std::shared_ptr<ASTExpr> retVal;
-	std::shared_ptr<ASTLogicalAnd> prime;
+	std::shared_ptr<ASTLogicalOr> prime;
 
 	// this should not directly check factor but instead implement the proper grammar rule
 	std::shared_ptr<ASTExpr> v = parseAndTerm();
 	if (v) {
 		retVal = v;
-		prime = parseAndTermPrime(v);
+		prime = parseOrTermPrime(v);
 		
         if (prime) retVal = prime;
 	}
@@ -90,7 +101,7 @@ std::shared_ptr<ASTLogicalOr> Parser::parseOrTermPrime(std::shared_ptr<ASTExpr> 
 
 		consumeToken();
 
-		rhs = parseRelExpr();
+		rhs = parseAndTerm();
 
 		if (!rhs) throw OperandMissing(TokenType::Or);
 		
@@ -351,10 +362,12 @@ std::shared_ptr<ASTExpr> Parser::parseValue() {
 std::shared_ptr<ASTExpr> Parser::parseFactor() {
 	std::shared_ptr<ASTExpr> retVal;
 	
-	if ((retVal = parseIdentFactor()));
+	if ((retVal = parseParenFactor()));
 	else if ((retVal = parseConstantFactor()));
 	else if ((retVal = parseStringFactor()));
-	else if ((retVal = parseParenFactor()));
+	else if ((retVal = parseCharFactor()));
+	else if ((retVal = parseDoubleFactor()));
+	else if ((retVal = parseIdentFactor()));
 	else if ((retVal = parseIncFactor()));
 	else if ((retVal = parseDecFactor()));
 	else if ((retVal = parseAddrOfArrayFactor()));
@@ -377,37 +390,12 @@ std::shared_ptr<ASTExpr> Parser::parseParenFactor() {
 	return retVal;
 }
 
-// constant
-std::shared_ptr<ASTConstantExpr> Parser::parseConstantFactor() {
-	std::shared_ptr<ASTConstantExpr> retVal;
-	
-	if (peekIsOneOf({TokenType::IntLit})) {
-		retVal = std::make_shared<ASTConstantExpr>(mCurrToken.mStr);
-		consumeToken();
-	}
-
-	return retVal;
-}
-
-// string
-std::shared_ptr<ASTStringExpr> Parser::parseStringFactor() {
-	std::shared_ptr<ASTStringExpr> retVal;
-
-	if (peekIsOneOf({TokenType::StringLit})) {
-		retVal = std::make_shared<ASTStringExpr>(mCurrToken.mStr, mStrings);
-		consumeToken();
-	}
-
-	return retVal;
-}
-
 // id
 // id [ Expr ]
 // id ( FuncCallArgs )
 // id [Expr] (+=, -=, =) Expr
 // id (+=, -=, =) Expr
 std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
-	std::shared_ptr<ASTArrayExpr> arraySub;
 	std::shared_ptr<ASTExpr> retVal;
 
 	if (mCurrToken.mType == TokenType::Identifier) {
@@ -419,9 +407,7 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 
 		if (peekAndConsume(TokenType::LBracket)) {
 			if (ident->getType() != Type::IntArray && ident->getType() != Type::CharArray && !ident->isDummy()) {
-				std::string err("'");
-				err += ident->getName();
-				err += "' is not an array";
+				std::string err("Identifier is not an array");
 
 				reportSemantError(err, col);
 				
@@ -439,7 +425,7 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 					
 					if (!expr) throw ParseExceptMsg("Valid expression required inside [ ].");
 					
-					arraySub = std::make_shared<ASTArrayExpr>(*ident, expr);
+					retVal = std::make_shared<ASTArrayExpr>(*ident, expr);
 				} catch (ParseExcept& e) {
 					reportError(e);
 
@@ -560,6 +546,56 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 			// just a plain old ident
 			retVal = std::make_shared<ASTIdentExpr>(*ident);
 		}
+	}
+
+	return retVal;
+}
+
+// constant
+std::shared_ptr<ASTConstantExpr> Parser::parseConstantFactor() {
+	std::shared_ptr<ASTConstantExpr> retVal;
+	
+	if (peekIsOneOf({TokenType::IntLit})) {
+		retVal = std::make_shared<ASTConstantExpr>(mCurrToken.mStr);
+		consumeToken();
+	}
+
+	return retVal;
+}
+
+// string
+std::shared_ptr<ASTStringExpr> Parser::parseStringFactor() {
+	std::shared_ptr<ASTStringExpr> retVal;
+
+	if (peekIsOneOf({TokenType::StringLit})) {
+		retVal = std::make_shared<ASTStringExpr>(mCurrToken.mStr, mStringTable);
+		consumeToken();
+	}
+
+	return retVal;
+}
+
+// char
+std::shared_ptr<ASTCharExpr> Parser::parseCharFactor() {
+	std::shared_ptr<ASTCharExpr> retVal;
+
+	if (peekIsOneOf({TokenType::CharLit})) {
+		if (mCurrToken.mStr.size() > 1) throw ParseExceptMsg("Size of char should not be greater than 1");
+
+		retVal = std::make_shared<ASTCharExpr>(mCurrToken.mStr);
+		consumeToken();
+	}
+
+	return retVal;
+}
+
+// double
+std::shared_ptr<ASTDoubleExpr> Parser::parseDoubleFactor() {
+	std::shared_ptr<ASTDoubleExpr> retVal;
+
+	if (peekIsOneOf({TokenType::DoubleLit})) {
+		retVal = std::make_shared<ASTDoubleExpr>(mCurrToken.mStr);
+		consumeToken();
 	}
 
 	return retVal;

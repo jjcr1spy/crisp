@@ -1,6 +1,11 @@
 #include "astNodes.h"
 #include "../error/parseExcept.h"
 
+/*
+-----------------------------------------------------------------------
+ast nodes ASTProg ASTFunc 
+*/
+
 // add a function to the program
 void ASTProg::addFunction(std::shared_ptr<ASTFunc> func) noexcept {
 	mFuncs.push_back(func);
@@ -37,9 +42,9 @@ expression ast nodes
 // call this after both lhs/rhs are set and
 // it will evaluate the type of the expression
 // returns false if this is an invalid operation
+
 bool ASTAssignOp::finalizeOp() noexcept {
-	// lhs must return an identifier
-	return mRHS->getType() == mLHS->getType();
+	return mLHS->getType() == mRHS->getType();
 }
 
 bool ASTLogicalAnd::finalizeOp() noexcept {

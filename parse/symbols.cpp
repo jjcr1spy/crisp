@@ -1,7 +1,11 @@
 #include <algorithm>
 #include <iostream>
-
 #include "symbols.h"
+
+/*
+------------------------------------------------------
+SymbolTable methods
+*/ 
 
 SymbolTable::SymbolTable() noexcept
 : mCurrentScope {nullptr} {
@@ -21,6 +25,42 @@ SymbolTable::~SymbolTable() noexcept {
 	delete mCurrentScope;
 }
 
+bool SymbolTable::isDeclaredInScope(const std::string& s) const noexcept {
+    return mCurrentScope->searchInScope(s) != nullptr;
+}
+
+Identifier * SymbolTable::createIdentifier(const std::string& s) noexcept {
+    if (isDeclaredInScope(s)) return nullptr;
+
+    Identifier * ident = new Identifier(s);
+    mCurrentScope->addIdentifier(ident);
+
+    return ident;
+}
+
+Identifier * SymbolTable::getIdentifier(const std::string& s) const noexcept {
+    return mCurrentScope->search(s);
+}
+
+ScopeTable * SymbolTable::enterScope() noexcept {
+    return mCurrentScope = new ScopeTable(mCurrentScope);
+}
+
+void SymbolTable::exitScope() noexcept {
+    mCurrentScope = mCurrentScope->getParent();
+}
+
+void SymbolTable::print(std::ostream& output) const noexcept {
+    output << "Symbols:\n";
+
+	if (mCurrentScope) mCurrentScope->print(output);
+}
+
+/*
+------------------------------------------------------
+ScopeTable methods
+*/ 
+
 ScopeTable::ScopeTable(ScopeTable * parent) noexcept
 : mParent(parent) {
     if (parent) parent->mChildren.emplace_back(this);
@@ -28,10 +68,6 @@ ScopeTable::ScopeTable(ScopeTable * parent) noexcept
 
 ScopeTable::~ScopeTable() noexcept {
 	for (auto t : mChildren) delete t;
-}
-
-void ScopeTable::addIdentifier(Identifier * ident) {
-    mSymbols.emplace(ident->getName(), ident);
 }
 
 Identifier * ScopeTable::searchInScope(const std::string& name) noexcept {
@@ -49,6 +85,10 @@ Identifier * ScopeTable::search(const std::string& name) noexcept {
     return nullptr;
 }
 
+void ScopeTable::addIdentifier(Identifier * ident) {
+    mSymbols.emplace(ident->getName(), ident);
+}
+
 void ScopeTable::print(std::ostream& output, int depth) const noexcept {
     std::vector<Identifier*> idents;
 	
@@ -59,6 +99,8 @@ void ScopeTable::print(std::ostream& output, int depth) const noexcept {
 	});
 
 	for (const auto& ident : idents) {
+        if (ident->getName()[0] == '@') continue;
+
 		for (int i = 0; i < depth; i++) {
 			output << "---";
 		}
@@ -102,36 +144,10 @@ void ScopeTable::print(std::ostream& output, int depth) const noexcept {
 	}
 }
 
-bool SymbolTable::isDeclaredInScope(const std::string& s) const noexcept {
-    return mCurrentScope->searchInScope(s) != nullptr;
-}
-
-Identifier * SymbolTable::createIdentifier(const std::string& s) noexcept {
-    if (isDeclaredInScope(s)) return nullptr;
-
-    Identifier * ident = new Identifier(s);
-    mCurrentScope->addIdentifier(ident);
-
-    return ident;
-}
-
-Identifier * SymbolTable::getIdentifier(const std::string& s) const noexcept {
-    return mCurrentScope->search(s);
-}
-
-ScopeTable * SymbolTable::enterScope() noexcept {
-    return mCurrentScope = new ScopeTable(mCurrentScope);
-}
-
-void SymbolTable::exitScope() noexcept {
-    mCurrentScope->getParent();
-}
-
-void SymbolTable::print(std::ostream& output) const noexcept {
-    output << "Symbols:\n";
-
-	if (mCurrentScope) mCurrentScope->print(output);
-}
+/*
+------------------------------------------------------
+StringTable methods
+*/ 
 
 // delete all allocated ConstStr * using new
 StringTable::~StringTable() noexcept {

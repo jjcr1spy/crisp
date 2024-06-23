@@ -3,7 +3,6 @@
 #include <utility> 
 #include <cctype> 
 #include <iostream>
-
 #include "token.h"
 #include "scan.h"
 
@@ -232,112 +231,112 @@ void Scanner::scanToken() noexcept {
     char c = advance(); 
 
     switch (c) {
-    case '/': // handle comments, only support // at the moment
-        if (match('/')) {
-            while (peek() != '\n' && !isAtEnd()) {
-                advance();
+        case '/': // handle comments, only support // at the moment
+            if (match('/')) {
+                while (peek() != '\n' && !isAtEnd()) {
+                    advance();
+                }
+            } else {
+                addToken(TokenType::Div);
             }
-        } else {
-            addToken(TokenType::Div);
-        }
 
-        break;
-    case '"': // for strings
-        string();
+            break;
+        case '"': // for strings
+            string();
 
-        break;
-    case '\'': // for chars
-        character();
+            break;
+        case '\'': // for chars
+            character();
 
-        break;
-    case '+': 
-        if (match('+')) addToken(TokenType::Inc);
-        else if (match('=')) addToken(TokenType::IncAssign);
-        else addToken(TokenType::Plus);
-    
-        break;
-    case '-':
-        if (match('-')) addToken(TokenType::Dec);
-        else if (match('=')) addToken(TokenType::MinusAssign);
-        else if (isdigit(peek())) number();
-        else addToken(TokenType::Minus);
+            break;
+        case '+': 
+            if (match('+')) addToken(TokenType::Inc);
+            else if (match('=')) addToken(TokenType::IncAssign);
+            else addToken(TokenType::Plus);
+        
+            break;
+        case '-':
+            if (match('-')) addToken(TokenType::Dec);
+            else if (match('=')) addToken(TokenType::MinusAssign);
+            else if (isdigit(peek())) number();
+            else addToken(TokenType::Minus);
 
-        break;
-    case '!':
-        if (match('=')) addToken(TokenType::NotEqual);
-        else addToken(TokenType::Not);
+            break;
+        case '!':
+            if (match('=')) addToken(TokenType::NotEqual);
+            else addToken(TokenType::Not);
 
-        break;
-    case '<':
-        if (match('=')) addToken(TokenType::LThanOrEq);
-        else addToken(TokenType::LessThan);
+            break;
+        case '<':
+            if (match('=')) addToken(TokenType::LThanOrEq);
+            else addToken(TokenType::LessThan);
 
-        break;
-    case '>':
-        if (match('=')) addToken(TokenType::GThanOrEq);
-        else addToken(TokenType::GreaterThan);
+            break;
+        case '>':
+            if (match('=')) addToken(TokenType::GThanOrEq);
+            else addToken(TokenType::GreaterThan);
 
-        break;
-    case '&':
-        if (match('&')) addToken(TokenType::And);
-        else addToken(TokenType::Addr);
+            break;
+        case '&':
+            if (match('&')) addToken(TokenType::And);
+            else addToken(TokenType::Addr);
 
-        break;
-    case '|':
-        if (match('|')) addToken(TokenType::Or);
-        else addToken(TokenType::Unknown);
+            break;
+        case '|':
+            if (match('|')) addToken(TokenType::Or);
+            else addToken(TokenType::Unknown);
 
-        break;
-    case '=':
-        if (match('=')) addToken(TokenType::EqualTo);
-        else addToken(TokenType::Assign);
+            break;
+        case '=':
+            if (match('=')) addToken(TokenType::EqualTo);
+            else addToken(TokenType::Assign);
 
-        break;
-    case '[':
-        addToken(TokenType::LBracket);
+            break;
+        case '[':
+            addToken(TokenType::LBracket);
 
-        break;
-    case ']':
-        addToken(TokenType::RBracket);
+            break;
+        case ']':
+            addToken(TokenType::RBracket);
 
-        break;
-    case '*':
-        addToken(TokenType::Mult);
+            break;
+        case '*':
+            addToken(TokenType::Mult);
 
-        break;
-    case '%':
-        addToken(TokenType::Mod);
+            break;
+        case '%':
+            addToken(TokenType::Mod);
 
-        break;
-    case ';':
-        addToken(TokenType::SemiColon);
+            break;
+        case ';':
+            addToken(TokenType::SemiColon);
 
-        break;
-    case '{':
-        addToken(TokenType::LBrace);
+            break;
+        case '{':
+            addToken(TokenType::LBrace);
 
-        break;
-    case '}':
-        addToken(TokenType::RBrace);
+            break;
+        case '}':
+            addToken(TokenType::RBrace);
 
-        break;
-    case ',':
-        addToken(TokenType::Comma);
+            break;
+        case ',':
+            addToken(TokenType::Comma);
 
-        break;
-    case '(':
-        addToken(TokenType::LParen);
+            break;
+        case '(':
+            addToken(TokenType::LParen);
 
-        break;
-    case ')':
-        addToken(TokenType::RParen);
+            break;
+        case ')':
+            addToken(TokenType::RParen);
 
-        break;
-    default:
-        if (isdigit(c)) number();
-        else if (isalpha(c) || c == '_') identifier();
-        else addToken(TokenType::Unknown);
+            break;
+        default:
+            if (isdigit(c)) number();
+            else if (isalpha(c) || c == '_') identifier();
+            else addToken(TokenType::Unknown);
 
-        break;
+            break;
     }
 }

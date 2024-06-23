@@ -9,7 +9,6 @@ defines the classes needed to perform semantic analysis i.e. class Identifier, S
 #include <string>
 #include <vector>
 #include <unordered_map>
-
 #include "types.h"
 
 class ASTFunc;
@@ -17,6 +16,12 @@ class ASTFunc;
 class Identifier {
 public:
     friend class SymbolTable;
+
+    Identifier(const std::string& name) noexcept
+    : mName {name}
+    , mFunction {nullptr}
+    , mType {Type::Void}
+    , mElemCount {-1} { }
 
     ~Identifier() noexcept = default;
 
@@ -62,15 +67,8 @@ public:
         mFunction = func;
     }
 private:
-    // private so only the SymbolTable can create idents
-    Identifier(const std::string& name) noexcept
-    : mName {name}
-    , mFunction {nullptr}
-    , mType {Type::Void}
-    , mElemCount {-1} { }
-    
     // name of ident
-    const std::string& mName;
+    std::string mName;
 
     // pointer to function of ident
     std::shared_ptr<ASTFunc> mFunction;
