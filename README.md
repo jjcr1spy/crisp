@@ -46,7 +46,9 @@ int x = "sadfsf"
 
 This matches our context-free grammar format, but semantically it doesn't make any sense. This is where semantic analysis comes into play. Semantic analysis (aka, non-context-free syntactic analysis) ensures that the program satisfies a set of rules regarding the usage of programming constructs (variables, objects, expressions, statements). 
 
-### 4. Lower Intermediate Representation (LIR)
+## Middle End Components
+
+### 1. Lower Intermediate Representation (LIR)
 
 At this point, we have identified valid programs that fit our definition of regular expressions and context-free grammars. We also used semantic analysis to catch static semantic and scoping rule errors that CFG cannot catch. 
 
@@ -67,9 +69,7 @@ We will use SSA LLVM LIR for many reasons:
 - Supports both high and low-level optimization.
 - Optimize as much and as early as possible.
 
-## Middle End Components
-
-### 1. IR Lowering (Syntax-directed Translation)
+### 2. IR Lowering (Syntax-directed Translation)
 
 We want to convert our HIR (AST) to SSA LLVM LIR. 
 
@@ -82,3 +82,5 @@ Solution (Syntax-directed translation)
 - Start from the HIR (AST) representation.
 - Define translation for each node in LIR.
 - Recursively translate nodes by walking the AST.
+
+### 3. 
