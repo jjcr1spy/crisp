@@ -1,6 +1,6 @@
 # Welcome to Crisp
 
-This is the beginning of my solo compiler project. I'll be documenting all my progress for anyone interested in following along. This project is a great learning experience for me as I'm fascinated by compilers and the abstraction they provide to programmers. The PL will be a subset of the C PL with aspirations to create a fully functioning front-end compiler for the entire C PL.
+This marks the beginning of my solo compiler project. I will be documenting all my progress for anyone interested in following along. This project is a significant learning experience for me as I am fascinated by compilers and the abstraction they provide to programmers. The programming language (PL) will be a subset of the C programming language, with aspirations to develop a fully functioning front-end and middle-end compiler for the entire C programming language. Given an input .crisp file, the compiler will generate an assembly file for the target architecture, which can then be assembled into binary using the assembler specific to the target architecture.
 
 ## Front End Components
 
