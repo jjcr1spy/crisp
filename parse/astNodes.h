@@ -15,19 +15,26 @@ class ASTArgDecl;
 class ASTCompoundStmt;
 class ASTExpr;
 
+// each printNode method defined in printNodes.cpp
+// each finalizeOp method defined in astNodes.cpp
+
 class ASTNode {
 public:
-    virtual ~ASTNode() = default;
-
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept = 0;
+    virtual ~ASTNode() noexcept = default;
+	virtual void printNode(std::ostream& output, int depth = 0) const noexcept = 0;	 
 protected:
-	ASTNode() = default;
+	ASTNode() noexcept = default;
 };
 
 class ASTProg : public ASTNode { 
 public:
+	ASTProg() noexcept = default;
+	~ASTProg() noexcept = default;
+
+	// defined in astNodes.cpp
     void addFunction(std::shared_ptr<ASTFunc> func) noexcept;
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private: 
     std::vector<std::shared_ptr<ASTFunc>> mFuncs;
 };
@@ -35,16 +42,19 @@ private:
 class ASTFunc : public ASTNode {
 public:
     ASTFunc(Identifier& ident, Type returnType, ScopeTable& scopeTable) noexcept
-    : mIdent(ident)
-    , mReturnType(returnType)
-    , mScopeTable(scopeTable) {}
+    : mIdent {ident}
+    , mReturnType {returnType}
+    , mScopeTable {scopeTable} { }
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTFunc() noexcept = default;
 
+	// defined in astNodes.cpp
     void addArg(std::shared_ptr<ASTArgDecl> arg) noexcept;
     void setBody(std::shared_ptr<ASTCompoundStmt> body) noexcept;
     bool checkArgType(int argNum, Type type) const noexcept;
     Type getArgType(int argNum) const noexcept;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 
     Type getReturnType() const noexcept {
         return mReturnType;
@@ -65,9 +75,11 @@ private:
 class ASTArgDecl : public ASTNode {
 public:
 	ASTArgDecl(Identifier& ident) noexcept
-	: mIdent(ident) { }
+	: mIdent {ident} { }
 	
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTArgDecl() noexcept = default;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 
 	Type getType() const noexcept {
 		return mIdent.getType();
@@ -85,17 +97,23 @@ private:
 statements 
 */ 
 
+// use as base class so no need to implement printNode since derived class will implement printNode
 class ASTStmt : public ASTNode {
-	
+public:
+    virtual ~ASTStmt() noexcept = default;
+protected:
+	ASTStmt() noexcept = default;
 };
 
 class ASTDecl : public ASTStmt {
 public:
 	ASTDecl(Identifier& ident, std::shared_ptr<ASTExpr> expr = nullptr) noexcept
-	: mIdent(ident)
-	, mExpr(expr) { }
+	: mIdent {ident}
+	, mExpr {expr} { }
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTDecl() noexcept = default;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	Identifier& mIdent;
 	std::shared_ptr<ASTExpr> mExpr;
@@ -103,10 +121,14 @@ private:
 
 class ASTCompoundStmt : public ASTStmt {
 public:
+	ASTCompoundStmt() noexcept = default;
+	~ASTCompoundStmt() noexcept = default;
+
+	// defined in astNodes.cpp
 	void addDecl(std::shared_ptr<ASTDecl> decl) noexcept;
 	void addStmt(std::shared_ptr<ASTStmt> stmt) noexcept;
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::vector<std::shared_ptr<ASTDecl>> mDecls;
 	std::vector<std::shared_ptr<ASTStmt>> mStmts;
@@ -115,11 +137,13 @@ private:
 class ASTIfStmt : public ASTStmt {
 public:
 	ASTIfStmt(std::shared_ptr<ASTExpr> expr, std::shared_ptr<ASTStmt> thenStmt, std::shared_ptr<ASTStmt> elseStmt = nullptr) noexcept
-	: mExpr(expr)
-	, mThenStmt(thenStmt)
-	, mElseStmt(elseStmt) { }
+	: mExpr {expr}
+	, mThenStmt {thenStmt}
+	, mElseStmt {elseStmt} { }
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTIfStmt() noexcept = default;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 	std::shared_ptr<ASTStmt> mThenStmt;
@@ -129,34 +153,40 @@ private:
 class ASTReturnStmt : public ASTStmt {
 public:
 	ASTReturnStmt(std::shared_ptr<ASTExpr> expr) noexcept
-	: mExpr(expr) { }
+	: mExpr {expr} { }
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTReturnStmt() noexcept = default;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 };
 
 class ASTForStmt : public ASTStmt {
 public:
-	ASTForStmt(std::shared_ptr<ASTDecl> varDef, std::shared_ptr<ASTExpr> cond, std::shared_ptr<ASTExpr> update, std::shared_ptr<ASTStmt> loopStmt) noexcept
-    : mVarDecl(varDef)
-    , mExprCond(cond)
-    , mUpdateExpr(update)
-	, mLoopStmt(loopStmt) { }
+	ASTForStmt(std::shared_ptr<ASTStmt> varDef, std::shared_ptr<ASTStmt> cond, std::shared_ptr<ASTExpr> update, std::shared_ptr<ASTStmt> loopStmt) noexcept
+    : mVarDecl {varDef}
+    , mExprCond {cond}
+    , mUpdateStmt {update}
+	, mLoopBody {loopStmt} { }
+
+	~ASTForStmt() noexcept = default;
 private:
-    std::shared_ptr<ASTDecl> mVarDecl;
-	std::shared_ptr<ASTExpr> mExprCond;
-    std::shared_ptr<ASTExpr> mUpdateExpr;
-	std::shared_ptr<ASTStmt> mLoopStmt;
+    std::shared_ptr<ASTStmt> mVarDecl;
+	std::shared_ptr<ASTStmt> mExprCond;
+    std::shared_ptr<ASTExpr> mUpdateStmt;
+	std::shared_ptr<ASTStmt> mLoopBody;
 };
 
 class ASTWhileStmt : public ASTStmt {
 public:
 	ASTWhileStmt(std::shared_ptr<ASTExpr> expr, std::shared_ptr<ASTStmt> loopStmt) noexcept
-	: mExpr(expr)
-	, mLoopStmt(loopStmt) { }
+	: mExpr {expr}
+	, mLoopStmt {loopStmt} { }
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTWhileStmt() noexcept = default;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 	std::shared_ptr<ASTStmt> mLoopStmt;
@@ -167,14 +197,19 @@ public:
 	ASTExprStmt(std::shared_ptr<ASTExpr> expr) noexcept
 	: mExpr(expr) { }
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTExprStmt() noexcept = default;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 };
 
 class ASTNullStmt : public ASTStmt {
 public:
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	ASTNullStmt() noexcept = default;
+	~ASTNullStmt() noexcept = default;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 };
 
 /*
@@ -182,26 +217,33 @@ public:
 expressions
 */ 
 
+// use as base class so no need to implement printNode since derived class will implement printNode
 class ASTExpr : public ASTNode {
-public:
-	ASTExpr() noexcept
-	: mType(Type::Void) { }
-	
+public:	
+	virtual ~ASTExpr() noexcept = default;
+
 	Type getType() const noexcept {
 		return mType;
 	}
 protected:
+	ASTExpr() noexcept
+	: mType {Type::Void} { }
+
+	// all expressions have a type
 	Type mType;
 };
 
+// id
 class ASTIdentExpr : public ASTExpr {
 public:
 	ASTIdentExpr(Identifier& ident) noexcept
-	: mIdent(ident) {
+	: mIdent {ident} {
 		mType = mIdent.getType();
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTIdentExpr() noexcept = default;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	Identifier& mIdent;
 };
@@ -227,18 +269,22 @@ public:
 		}
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTArrayExpr() noexcept = default;
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 	Identifier& mIdent;
 };
 
+// lhs (+=, -=, =) rhs
 class ASTAssignOp : public ASTExpr {
 public:
 	ASTAssignOp(TokenType t) noexcept
 	: mOp {t} { }
 
-	// we need to be able to manually set the lhs/rhs
+	~ASTAssignOp() noexcept = default;
+
 	void setLHS(std::shared_ptr<ASTExpr> lhs) noexcept {
 		mLHS = lhs;
 	}
@@ -247,13 +293,8 @@ public:
 		mRHS = rhs;
 	}
 
-	// finalize the op
-	// call this after both lhs/rhs are set and
-	// it will evaluate the type of the expression
-	// returns false if this is an invalid operation
 	bool finalizeOp() noexcept;	
-
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	TokenType mOp;
 	std::shared_ptr<ASTExpr> mLHS;
@@ -264,7 +305,7 @@ private:
 class ASTFuncExpr : public ASTExpr {
 public:
 	ASTFuncExpr(Identifier& ident) noexcept
-	: mIdent(ident) {
+	: mIdent {ident} {
 		if (mIdent.getFunction()) {
 			mType = mIdent.getFunction()->getReturnType();
 		} else {
@@ -272,13 +313,14 @@ public:
 		}
 	}
 	
+	~ASTFuncExpr() noexcept = default;
+	
 	int getNumArgs() const noexcept {
 		return mArgs.size();
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-
 	void addArg(std::shared_ptr<ASTExpr> arg) noexcept;	
+	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	Identifier& mIdent;
 	std::vector<std::shared_ptr<ASTExpr>> mArgs;
@@ -286,7 +328,9 @@ private:
 
 class ASTLogicalAnd : public ASTExpr {
 public:
-	// we need to be able to manually set the lhs/rhs
+	ASTLogicalAnd() noexcept = default;
+	~ASTLogicalAnd() noexcept = default;
+
 	void setLHS(std::shared_ptr<ASTExpr> lhs) noexcept {
 		mLHS = lhs;
 	}
@@ -295,13 +339,8 @@ public:
 		mRHS = rhs;
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-	
-	// finalize the op
-	// call this after both lhs/rhs are set and
-	// it will evaluate the type of the expression
-	// returns false if this is an invalid operation
 	bool finalizeOp() noexcept;	
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mLHS;
 	std::shared_ptr<ASTExpr> mRHS;
@@ -309,7 +348,9 @@ private:
 
 class ASTLogicalOr : public ASTExpr {
 public:
-	// we need to be able to manually set the lhs/rhs
+	ASTLogicalOr() noexcept = default;
+	~ASTLogicalOr() noexcept = default;
+
 	void setLHS(std::shared_ptr<ASTExpr> lhs) noexcept {
 		mLHS = lhs;
 	}
@@ -318,13 +359,8 @@ public:
 		mRHS = rhs;
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-	
-	// finalize the op
-	// call this after both lhs/rhs are set and
-	// it will evaluate the type of the expression
-	// returns false if this is an invalid operation
 	bool finalizeOp() noexcept;	
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mLHS;
 	std::shared_ptr<ASTExpr> mRHS;
@@ -333,9 +369,10 @@ private:
 class ASTBinaryCmpOp : public ASTExpr {
 public:
 	ASTBinaryCmpOp(TokenType op) noexcept
-	: mOp(op) { }
+	: mOp {op} { }
 
-	// we need to be able to manually set the lhs/rhs
+	~ASTBinaryCmpOp() noexcept = default; 
+
 	void setLHS(std::shared_ptr<ASTExpr> lhs) noexcept {
 		mLHS = lhs;
 	}
@@ -344,13 +381,8 @@ public:
 		mRHS = rhs;
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-	
-	// finalize the op
-	// call this after both lhs/rhs are set and
-	// it will evaluate the type of the expression
-	// returns false if this is an invalid operation
 	bool finalizeOp() noexcept;	
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	TokenType mOp;
 	std::shared_ptr<ASTExpr> mLHS;
@@ -360,9 +392,10 @@ private:
 class ASTBinaryMathOp : public ASTExpr {
 public:
 	ASTBinaryMathOp(TokenType op) noexcept
-	: mOp(op) { }
+	: mOp {op} { }
+
+	~ASTBinaryMathOp() noexcept = default; 
 	
-	// we need to be able to manually set the lhs/rhs
 	void setLHS(std::shared_ptr<ASTExpr> lhs) noexcept {
 		mLHS = lhs;
 	}
@@ -371,27 +404,25 @@ public:
 		mRHS = rhs;
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
-	
-	// finalize the op
-	// call this after both lhs/rhs are set and
-	// it will evaluate the type of the expression
-	// returns false if this is an invalid operation
 	bool finalizeOp() noexcept;	
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	TokenType mOp;
 	std::shared_ptr<ASTExpr> mLHS;
 	std::shared_ptr<ASTExpr> mRHS;
 };
 
+// !expr
 class ASTNotExpr : public ASTExpr {
 public:
 	ASTNotExpr(std::shared_ptr<ASTExpr> expr) noexcept
-	: mExpr(expr) {
+	: mExpr {expr} {
 		mType = mExpr->getType();
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTNotExpr() noexcept = default; 
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 };
@@ -400,11 +431,13 @@ private:
 class ASTIncExpr : public ASTExpr {
 public:
 	ASTIncExpr(Identifier& ident) noexcept
-	: mIdent(ident) {
+	: mIdent {ident} {
 		mType = mIdent.getType();
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTIncExpr() noexcept = default; 
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	Identifier& mIdent;
 };
@@ -413,11 +446,13 @@ private:
 class ASTDecExpr : public ASTExpr {
 public:
 	ASTDecExpr(Identifier& ident) noexcept
-	: mIdent(ident) {
+	: mIdent {ident} {
 		mType = mIdent.getType();
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTDecExpr() noexcept = default; 
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	Identifier& mIdent;
 };
@@ -425,11 +460,13 @@ private:
 class ASTAddrOfArray : public ASTExpr {
 public:
 	ASTAddrOfArray(std::shared_ptr<ASTArrayExpr> array) noexcept
-	: mArray(array) {
+	: mArray {array} {
 		mType = mArray->getType();
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	~ASTAddrOfArray() noexcept = default; 
+
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	std::shared_ptr<ASTArrayExpr> mArray;
 };
@@ -441,11 +478,13 @@ public:
 		mType = Type::CharArray;
 	}
 
+	~ASTStringExpr() noexcept = default; 
+
 	int getLength() const noexcept {
 		return mString->getText().size();
 	}	
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	ConstStr * mString;
 };
@@ -456,12 +495,14 @@ public:
     : mValue {std::stoi(constStr)} {
 		mType = Type::Int;
 	}
+
+	~ASTConstantExpr() noexcept = default;
 	
 	int getValue() const noexcept {
 		return mValue;
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	int mValue;
 };
@@ -472,12 +513,14 @@ public:
 	: mValue {std::stod(constStr)} {
 		mType = Type::Double;
 	}
-	
+
+	~ASTDoubleExpr() noexcept = default;
+
 	double getValue() const noexcept {
 		return mValue;
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	double mValue;
 };
@@ -488,12 +531,14 @@ public:
 	: mValue {constStr[0]}{
 		mType = Type::Char;
 	}
+
+	~ASTCharExpr() noexcept = default;
 	
 	char getValue() const noexcept {
 		return mValue;
 	}
 
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 private:
 	char mValue;
 };

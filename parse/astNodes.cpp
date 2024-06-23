@@ -1,11 +1,6 @@
 #include "astNodes.h"
 #include "../error/parseExcept.h"
 
-/*
------------------------------------------------------------------------
-ast nodes ASTProg ASTFunc 
-*/
-
 // add a function to the program
 void ASTProg::addFunction(std::shared_ptr<ASTFunc> func) noexcept {
 	mFuncs.push_back(func);
@@ -28,20 +23,28 @@ Type ASTFunc::getArgType(int argNum) const noexcept {
 	else return Type::Void;
 }
 
-// set the compound statement body
 void ASTFunc::setBody(std::shared_ptr<ASTCompoundStmt> body) noexcept {
 	mBody = body;
 }
 
-/*
------------------------------------------------------------------------
-expression ast nodes
-*/
+void ASTFuncExpr::addArg(std::shared_ptr<ASTExpr> arg) noexcept {
+	mArgs.push_back(arg);
+}
 
-// finalize each op
-// call this after both lhs/rhs are set and
-// it will evaluate the type of the expression
-// returns false if this is an invalid operation
+void ASTCompoundStmt::addDecl(std::shared_ptr<ASTDecl> decl) noexcept {
+	mDecls.push_back(decl);
+}
+
+void ASTCompoundStmt::addStmt(std::shared_ptr<ASTStmt> stmt) noexcept {
+	mStmts.push_back(stmt);
+}
+
+/* 
+finalize each op
+call this after both lhs/rhs are set and
+it will evaluate the type of the expression
+returns false if this is an invalid operation
+*/
 
 bool ASTAssignOp::finalizeOp() noexcept {
 	return mLHS->getType() == mRHS->getType();
@@ -73,21 +76,4 @@ bool ASTBinaryMathOp::finalizeOp() noexcept {
 	
 	if (mRHS->getType() == Type::Int && mLHS->getType() == Type::Int) return true;
 	else return false;
-}
-
-void ASTFuncExpr::addArg(std::shared_ptr<ASTExpr> arg) noexcept {
-	mArgs.push_back(arg);
-}
-
-/*
------------------------------------------------------------------------
-statement ast nodes
-*/
-
-void ASTCompoundStmt::addDecl(std::shared_ptr<ASTDecl> decl) noexcept {
-	mDecls.push_back(decl);
-}
-
-void ASTCompoundStmt::addStmt(std::shared_ptr<ASTStmt> stmt) noexcept {
-	mStmts.push_back(stmt);
 }

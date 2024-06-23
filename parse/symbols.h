@@ -17,12 +17,6 @@ class Identifier {
 public:
     friend class SymbolTable;
 
-    Identifier(const std::string& name) noexcept
-    : mName {name}
-    , mFunction {nullptr}
-    , mType {Type::Void}
-    , mElemCount {-1} { }
-
     ~Identifier() noexcept = default;
 
     bool isDummy() const noexcept {
@@ -67,6 +61,13 @@ public:
         mFunction = func;
     }
 private:
+    // private so only SymbolTable can create Identifier
+    Identifier(const std::string& name) noexcept
+    : mName {name}
+    , mFunction {nullptr}
+    , mType {Type::Void}
+    , mElemCount {-1} { }
+
     // name of ident
     std::string mName;
 
