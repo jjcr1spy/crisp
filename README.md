@@ -2,7 +2,7 @@
 
 This marks the beginning of my solo compiler project. I will be documenting all my progress for anyone interested in following along. This project is a significant learning experience for me as I am fascinated by compilers and the abstraction they provide to programmers. The programming language (PL) will be a subset of the C programming language, with aspirations to develop a fully functioning front-end and middle-end compiler for the entire C programming language. Given an input .crisp file, the compiler will generate a LLVM bitcode file .bc, which can then be compiled into native assembly for some target architecture using LLVM's backend compiler llc, which translates LLVM bitcode to a native code assembly file. From there, using gcc or any other compiler toolchain you can assemble the assembly file into an executable.
 
-Hooking up crisp to LLVM:
+Hooking up the compiler to LLVM API:
 - Clone repo and cd into llvm-project. 
 - Install LLVM's in house linker lld.
 - Run command 'cmake -S llvm -B build -G "Unix Makefiles" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_ENABLE_PROJECTS="lld" -DLLVM_USE_LINKER=lld -DCMAKE_BUILD_TYPE=Release '
@@ -97,18 +97,13 @@ registers to physical registers in the hardware.
 
 LLVM IR must be in SSA form. This in simple terms means we can only assign to a virtual register once. 
 
-For example: 
-`
-x = x + 1 
-`
-- Invalid SSA form 
-`
-x2 = x1 + 1 
-`
-- Valid SSA form 
+- Invalid SSA form `x = x + 1` 
+- Valid SSA form `x2 = x1 + 1`
 
-What if we don’t follow SSA in our LLVM IR generation? LLVM allows us to have a workaround for those 
-who don't want to create an additional pass to translate their IR to SSA form. LLVM bitcode supports a stack frame via the alloca, load, and store instructions. This has a downside though as this creates lots of redundant memory operations i.e. stores followed immediately by loads. This is the same approach taken by Clang when it first generates LLVM IR. Clang then later converts the IR to SSA form using the mem2reg pass offered by LLVM API, which implements the canonical Cytron algorithm to generate SSA form and cleans up the redundant operations. 
+What if we don’t follow SSA in our LLVM IR generation? 
+- LLVM allows us to have a workaround for those who don't want to create an additional pass to translate their IR to SSA form. 
+- LLVM bitcode supports a stack frame via the alloca, load, and store instructions. This has a downside though as this creates lots of redundant memory operations i.e. stores followed immediately by loads. 
+- This is the same approach taken by Clang when it first generates LLVM IR. Clang then later converts the IR to SSA form using the mem2reg pass offered by LLVM API, which implements the canonical Cytron algorithm to generate SSA form and cleans up the redundant operations. 
 
 An alternative solution: 
 - While converting to LLVM IR, maintain SSA form on the fly using an algorithm in a published paper. Refer to the file in the GitHub repo titled SSA_paper.pdf
