@@ -1,7 +1,11 @@
 #include <iostream>
+#include "../scan/scan.h"
+#include "../error/parseExcept.h"
+#include "astNodes.h"
+#include "symbols.h"
 #include "parse.h"
 
-Parser::Parser(Scanner& scanner, const char * fileName, std::ostream * errStream, std::ostream * astStream) 
+Parser::Parser(Scanner& scanner, SymbolTable& table, StringTable& strings, const char * fileName, std::ostream * errStream, std::ostream * astStream) 
 : mScanner {scanner}
 , mCurrToken {scanner.mTokens[0]}
 , mTokenIndex {0}
@@ -9,8 +13,8 @@ Parser::Parser(Scanner& scanner, const char * fileName, std::ostream * errStream
 , mFileName {fileName}
 , mErrStream {errStream}
 , mAstStream {astStream}
-, mSymbolTable {}
-, mStringTable {}
+, mSymbolTable {table}
+, mStringTable {strings}
 , mCurrReturnType {Type::Void}
 , mNeedPrintf {false} {
     try {

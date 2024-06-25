@@ -1,8 +1,10 @@
 #include <iostream>
 #include <unistd.h>  
-
+#include "../scan/scan.h"
 #include "../parse/parse.h"
+#include "../parse/symbols.h"
 #include "../error/parseExcept.h"
+#include "../emitIR/emitter.h"
 
 int main(int argc, char * argv[]) {
     if (argc != 2) {
@@ -36,28 +38,40 @@ int main(int argc, char * argv[]) {
     */ 
 
     try {
+        // scan input file into tokens
         Scanner scanner {argv[1]};
         scanner.scanTokens();
 
-        std::ostream * astStream = &std::cout, * errStream = &std::cerr;
+        // designate stdout and stderr stream
+        std::ostream * astStream = &std::cout;
+        std::ostream * errStream = &std::cerr;
 
-        // continue w parsing 
-        // print AST to stdout if specified but only if no parsing errors
-        Parser parser {scanner, argv[1], errStream, astStream};
+        // init SymbolTable and StringTable 
+        SymbolTable symTable {};
+        StringTable strTable {};
 
-        // check parsing error count
+        // parse tokens into AST  
+        // AST can be printed to stdout if specified and no parsing errors
+        Parser parser {scanner, symTable, strTable, argv[1], errStream, astStream};
+
+        // parsing errors?
         if (!parser.isValid()) {
             std::cerr << parser.getNumErrors() << " Error(s)" << std::endl;
 			return 1;
         }
 
-        // continue w llvm bitcode generation and print to stdout if needed
-        // TODO (dont forget SSA)
+        // LLVM IR generation
+        Emitter emit {parser};
 
-        // continue w opt if specified 
+        // verify no problems with IR gen
+
+        // convert IR to SSA form
         // TODO
 
-        // continue w compiling to target architecture
+        // continue optimizations 
+        // TODO
+
+        // continue w backend shit 
         // TODO
     } catch (ParseExcept& e) {
 		std::cerr << "crisp: error: Critical error. Compilation halted." << std::endl;

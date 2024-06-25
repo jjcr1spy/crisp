@@ -11,7 +11,17 @@ defines the classes needed to perform semantic analysis i.e. class Identifier, S
 #include <unordered_map>
 #include "types.h"
 
+// in ../parse/astNodes.h
 class ASTFunc;
+
+// in ../emitIR/emitter.h
+class CodeContext;
+
+// forward declare llvm Value and Type to make compiler happy 
+namespace llvm {
+    class Value;
+    class Type;
+}
 
 class Identifier {
 public:
@@ -23,27 +33,6 @@ public:
 		return mName == "@@variable" || mName == "@@function";
 	}
 
-    const std::string& getName() const noexcept {
-        return mName;
-    }
-
-    void setType(Type type) noexcept {
-        mType = type;
-    }
-
-    Type getType() const noexcept {
-        return mType;
-    }
-    
-    // sets number of elements in an array (used only for array types)
-    void setArrayCount(int count) noexcept {
-        mElemCount = count;
-    }
-
-    int getArrayCount() const noexcept {
-        return mElemCount;
-    }
-
     bool isArray() const noexcept {
         return (mType == Type::IntArray || mType == Type::CharArray || mType == Type::DoubleArray);
     }
@@ -52,21 +41,57 @@ public:
     bool isFunction() const noexcept {
         return mType == Type::Function;
     }
+
+    void setType(Type type) noexcept {
+        mType = type;
+    }
+
+    // sets number of elements in an array (used only for array types)
+    void setArrayCount(int count) noexcept {
+        mElemCount = count;
+    }
+
+    void setFunction(std::shared_ptr<ASTFunc> func) noexcept {
+        mFunction = func;
+    }
+
+	void setAddress(llvm::Value* value) noexcept {
+		mAddress = value;
+	}
+
+    const std::string& getName() const noexcept {
+        return mName;
+    }
+
+    Type getType() const noexcept {
+        return mType;
+    }
+
+    int getArrayCount() const noexcept {
+        return mElemCount;
+    }
     
     std::shared_ptr<ASTFunc> getFunction() const noexcept {
         return mFunction;
     }
     
-    void setFunction(std::shared_ptr<ASTFunc> func) noexcept {
-        mFunction = func;
-    }
+    llvm::Value * getAddress() const noexcept {
+		return mAddress;
+	}
+	
+	llvm::Type * llvmType(CodeContext& context, bool treatArrayAsPtr = true) noexcept;
+	
+	llvm::Value * readFrom(CodeContext& context) noexcept;
+	
+	void writeTo(CodeContext& context, llvm::Value* value) noexcept;
 private:
     // private so only SymbolTable can create Identifier
     Identifier(const std::string& name) noexcept
     : mName {name}
     , mFunction {nullptr}
     , mType {Type::Void}
-    , mElemCount {-1} { }
+    , mElemCount {-1} 
+    , mAddress {nullptr} { }
 
     // name of ident
     std::string mName;
@@ -79,6 +104,9 @@ private:
 
     // for arrays number of elements
     int mElemCount;
+
+    // used for ident address in codegen
+    llvm::Value * mAddress;
 };
 
 // recursive as scope is nested
@@ -103,6 +131,10 @@ public:
     
     // prints the scope table to the specified stream
     void print(std::ostream& output, int depth = 0) const noexcept;
+
+    // emits declarations for all non-function symbols in this scope
+    // used to front-load all stack-based variables to the start of the function
+	void codegen(CodeContext& context) noexcept;
 
     ScopeTable * getParent() {
         return mParent;
@@ -155,15 +187,22 @@ public:
 	friend class StringTable;
 
 	ConstStr(const std::string& text) noexcept
-	: mText {text} {}
+	: mText {text} 
+    , mValue {nullptr} {}
 
     ~ConstStr() noexcept = default;
 	
 	const std::string& getText() const noexcept {
 		return mText;
 	}
+
+    llvm::Value* getValue() const noexcept {
+		return mValue;
+	}
 private:
 	std::string mText;
+
+    llvm::Value * mValue;
 };
 
 class StringTable {
@@ -177,6 +216,9 @@ public:
 	// if it exists returns the corresponding ConstStr
 	// otherwise constructs a new ConstStr and returns that
 	ConstStr * getString(const std::string& val) noexcept;
+
+    // emit the table to the IR constants
+    void codegen(CodeContext& context) noexcept;
 private:
 	std::unordered_map<std::string, ConstStr *> mStrings;
 };

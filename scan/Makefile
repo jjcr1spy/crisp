@@ -1,4 +1,4 @@
-# g++ specifications etc
+# clang++ specifications etc
 include ../Makefile.variables
 
 # where we store .o files

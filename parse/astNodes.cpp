@@ -1,5 +1,4 @@
 #include "astNodes.h"
-#include "../error/parseExcept.h"
 
 // add a function to the program
 void ASTProg::addFunction(std::shared_ptr<ASTFunc> func) noexcept {

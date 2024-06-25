@@ -8,9 +8,7 @@ defines the scanner i.e. class Scanner for scanning the input file and generatin
 #include <string>
 #include <vector>
 #include <unordered_map> 
-
-// in token token.h
-enum class TokenType; class Token;     
+#include "token.h"
 
 class Scanner {
 public:

@@ -7,21 +7,38 @@ defines all AST nodes used in the recursive descent parsing
 
 #include <memory>
 #include <vector>
-#include "symbols.h"
 #include "../scan/token.h"
+#include "types.h"
+#include "symbols.h"
 
+// each printNode method defined in printNodes.cpp
+// each finalizeOp method for each op defined in astNodes.cpp
+// each codegen method defined in ../emitIR/astEmit.cpp
+
+// forward declare llvm Value to make compiler happy 
+namespace llvm {
+	class Value;
+}
+
+// in ../emitIr/emitter.h
+class CodeContext;
+
+// defined below just need to forward declare for compiler
 class ASTFunc;
 class ASTArgDecl;
 class ASTCompoundStmt;
 class ASTExpr;
 
-// each printNode method defined in printNodes.cpp
-// each finalizeOp method defined in astNodes.cpp
-
 class ASTNode {
 public:
+	// virtual so subclass deconstructors get called too
     virtual ~ASTNode() noexcept = default;
-	virtual void printNode(std::ostream& output, int depth = 0) const noexcept = 0;	 
+
+	// each node should have a printNode method to make sure AST is well formed
+	virtual void printNode(std::ostream& output, int depth = 0) const noexcept = 0;	
+
+	// each node should have a codegen method to output LLVM LIR  
+	virtual llvm::Value * codegen(CodeContext& context) const noexcept = 0; 
 protected:
 	ASTNode() noexcept = default;
 };
@@ -35,6 +52,7 @@ public:
     void addFunction(std::shared_ptr<ASTFunc> func) noexcept;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override; 
 private: 
     std::vector<std::shared_ptr<ASTFunc>> mFuncs;
 };
@@ -55,6 +73,7 @@ public:
     Type getArgType(int argNum) const noexcept;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 
     Type getReturnType() const noexcept {
         return mReturnType;
@@ -69,7 +88,7 @@ protected:
 private:
     Identifier& mIdent;
     Type mReturnType;
-    ScopeTable mScopeTable;
+    ScopeTable& mScopeTable;
 };
 
 class ASTArgDecl : public ASTNode {
@@ -80,6 +99,7 @@ public:
 	~ASTArgDecl() noexcept = default;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 
 	Type getType() const noexcept {
 		return mIdent.getType();
@@ -114,6 +134,7 @@ public:
 	~ASTDecl() noexcept = default;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	Identifier& mIdent;
 	std::shared_ptr<ASTExpr> mExpr;
@@ -129,6 +150,7 @@ public:
 	void addStmt(std::shared_ptr<ASTStmt> stmt) noexcept;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::vector<std::shared_ptr<ASTDecl>> mDecls;
 	std::vector<std::shared_ptr<ASTStmt>> mStmts;
@@ -144,6 +166,7 @@ public:
 	~ASTIfStmt() noexcept = default;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 	std::shared_ptr<ASTStmt> mThenStmt;
@@ -158,6 +181,7 @@ public:
 	~ASTReturnStmt() noexcept = default;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 };
@@ -171,6 +195,8 @@ public:
 	, mLoopBody {loopStmt} { }
 
 	~ASTForStmt() noexcept = default;
+
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
     std::shared_ptr<ASTStmt> mVarDecl;
 	std::shared_ptr<ASTStmt> mExprCond;
@@ -187,6 +213,7 @@ public:
 	~ASTWhileStmt() noexcept = default;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 	std::shared_ptr<ASTStmt> mLoopStmt;
@@ -200,6 +227,7 @@ public:
 	~ASTExprStmt() noexcept = default;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 };
@@ -210,6 +238,7 @@ public:
 	~ASTNullStmt() noexcept = default;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 };
 
 /*
@@ -244,6 +273,7 @@ public:
 	~ASTIdentExpr() noexcept = default;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	Identifier& mIdent;
 };
@@ -272,6 +302,7 @@ public:
 	~ASTArrayExpr() noexcept = default;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 	Identifier& mIdent;
@@ -295,6 +326,7 @@ public:
 
 	bool finalizeOp() noexcept;	
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	TokenType mOp;
 	std::shared_ptr<ASTExpr> mLHS;
@@ -321,6 +353,7 @@ public:
 
 	void addArg(std::shared_ptr<ASTExpr> arg) noexcept;	
 	virtual void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	Identifier& mIdent;
 	std::vector<std::shared_ptr<ASTExpr>> mArgs;
@@ -341,6 +374,7 @@ public:
 
 	bool finalizeOp() noexcept;	
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mLHS;
 	std::shared_ptr<ASTExpr> mRHS;
@@ -361,6 +395,7 @@ public:
 
 	bool finalizeOp() noexcept;	
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mLHS;
 	std::shared_ptr<ASTExpr> mRHS;
@@ -383,6 +418,7 @@ public:
 
 	bool finalizeOp() noexcept;	
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	TokenType mOp;
 	std::shared_ptr<ASTExpr> mLHS;
@@ -406,6 +442,7 @@ public:
 
 	bool finalizeOp() noexcept;	
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	TokenType mOp;
 	std::shared_ptr<ASTExpr> mLHS;
@@ -423,6 +460,7 @@ public:
 	~ASTNotExpr() noexcept = default; 
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 };
@@ -438,6 +476,7 @@ public:
 	~ASTIncExpr() noexcept = default; 
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	Identifier& mIdent;
 };
@@ -453,6 +492,7 @@ public:
 	~ASTDecExpr() noexcept = default; 
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	Identifier& mIdent;
 };
@@ -467,6 +507,7 @@ public:
 	~ASTAddrOfArray() noexcept = default; 
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	std::shared_ptr<ASTArrayExpr> mArray;
 };
@@ -485,6 +526,7 @@ public:
 	}	
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	ConstStr * mString;
 };
@@ -503,6 +545,7 @@ public:
 	}
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	int mValue;
 };
@@ -521,6 +564,7 @@ public:
 	}
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	double mValue;
 };
@@ -539,6 +583,7 @@ public:
 	}
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
+	llvm::Value * codegen(CodeContext& context) const noexcept override;
 private:
 	char mValue;
 };

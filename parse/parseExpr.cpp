@@ -1,5 +1,6 @@
-#include "parse.h"
 #include "../error/parseExcept.h"
+#include "astNodes.h"
+#include "parse.h"
 
 std::shared_ptr<ASTExpr> Parser::parseExpr() {
 	std::shared_ptr<ASTExpr> retVal = parseAssignExpr();

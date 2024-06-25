@@ -8,19 +8,35 @@ defines the parser i.e. class Parser which is used for recursive descent parsing
 #include <memory>
 #include <fstream> 
 #include <vector> 
+#include "types.h"
 
-#include "symbols.h"
-#include "astNodes.h"
-#include "../error/parseExcept.h"
-#include "../scan/token.h"
-#include "../scan/scan.h"
+// in ../scan/astNodes.h
+class ASTProg; class ASTFunc; class ASTArgDecl; class ASTDecl;
+class ASTStmt; class ASTIfStmt; class ASTForStmt; class ASTWhileStmt; 
+class ASTReturnStmt; class ASTExprStmt; class ASTNullStmt; class ASTCompoundStmt; 
+class ASTExpr; class ASTAssignOp; class ASTLogicalOr; class ASTLogicalAnd; class ASTBinaryCmpOp;
+class ASTBinaryMathOp; class ASTConstantExpr; class ASTCharExpr; class ASTStringExpr; class ASTDoubleExpr;
+
+// in ../scan/Token.h
+class Token; enum class TokenType;
+
+// in ../error/parseExcept.h
+class ParseExcept;
+
+// in ../scan/scan.h
+class Scanner;
+
+// in symbols.h
+class SymbolTable; class StringTable; class Identifier;
 
 class Parser {	
 public:
+	friend class Emitter;
+
 	// start parsing by calling parseProgram()
 	// catch errors that reach constructor 
 	// after parsing call displayErrors() to send error messages to stderr
-	Parser(Scanner& scanner, const char * fileName, std::ostream * errStream, std::ostream * ASTStream);
+	Parser(Scanner& scanner, SymbolTable& table, StringTable& strings, const char * fileName, std::ostream * errStream, std::ostream * ASTStream);
 
 	~Parser() noexcept = default;
 
@@ -32,12 +48,12 @@ public:
         return mErrors.size();
     }
 protected: 
-	// these are all the mutually recursive parse functions
+	// mutually recursive parse functions
 	
-	// entry point for parser (in parser.cpp)
+	// entry point for parser (in parse.cpp)
 	std::shared_ptr<ASTProg> parseProgram();
 	
-	// function definitions and/or forward declarations (in parser.cpp)
+	// function definitions and/or forward declarations (in parse.cpp)
 	std::shared_ptr<ASTFunc> parseFunction();
 	std::shared_ptr<ASTArgDecl> parseArgDecl();
 
@@ -137,10 +153,10 @@ private:
 	std::ostream * mAstStream;
 	
 	// SymbolTable corresponding to the parsed file
-	SymbolTable mSymbolTable;
+	SymbolTable& mSymbolTable;
 
 	// StringTable for this file
-	StringTable mStringTable;
+	StringTable& mStringTable;
 
 	// tracks the return type of the current function
 	Type mCurrReturnType;

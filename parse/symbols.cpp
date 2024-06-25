@@ -1,6 +1,75 @@
 #include <algorithm>
 #include <iostream>
+#include "../emitIR/emitter.h"
 #include "symbols.h"
+
+/*
+------------------------------------------------------
+Identifier methods
+*/ 
+
+llvm::Type * Identifier::llvmType(CodeContext& ctx, bool treatArrayAsPtr) noexcept {
+    llvm::Type * type = nullptr;
+
+    switch (mType) {
+        case Type::Void:
+            type = llvm::Type::getVoidTy(*ctx.mGlobalContext);
+
+            break;
+        case Type::Char:
+            type = llvm::Type::getInt8Ty(*ctx.mGlobalContext);
+
+            break;
+        case Type::Int:
+            type = llvm::Type::getInt32Ty(*ctx.mGlobalContext);
+
+            break;
+        case Type::Double:
+            type = llvm::Type::getDoubleTy(*ctx.mGlobalContext);
+
+            break;
+        case Type::CharArray:
+            // treating array as pointer?
+            if (treatArrayAsPtr) {
+                type = llvm::PointerType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), 0);
+            } else {
+                type = llvm::ArrayType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), mElemCount);
+            }
+
+            break;
+        case Type::IntArray:
+            // treating array as pointer?
+            if (treatArrayAsPtr) {
+                type = llvm::PointerType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), 0);
+            } else {
+                type = llvm::ArrayType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), mElemCount);
+            }
+
+            break;
+        case Type::DoubleArray:
+            // treating array as pointer?
+            if (treatArrayAsPtr) {
+                type = llvm::PointerType::get(llvm::Type::getDoubleTy(*ctx.mGlobalContext), 0);
+            } else {
+                type = llvm::ArrayType::get(llvm::Type::getDoubleTy(*ctx.mGlobalContext), mElemCount);
+            }
+
+            break;
+        case Type::Function:
+            break;
+    }
+
+    return type;
+}
+	
+llvm::Value * Identifier::readFrom(CodeContext& ctx) noexcept {
+
+}
+	
+void Identifier::writeTo(CodeContext& ctx, llvm::Value * value) noexcept {
+    
+}
+
 
 /*
 ------------------------------------------------------
@@ -144,6 +213,50 @@ void ScopeTable::print(std::ostream& output, int depth) const noexcept {
 	}
 }
 
+void ScopeTable::codegen(CodeContext& ctx) noexcept {
+    // the only thing we should alloca are arrays of a specified size
+	// emit all the symbols in this scope
+	for (auto sym : mSymbols) {
+		Identifier * ident = sym.second;
+
+        // build instructions for this function
+		llvm::IRBuilder<> build(ctx.mBlock);
+
+		llvm::Value * decl = nullptr;
+		
+		const std::string& name = ident->getName();
+		
+		// getArrayCount() is -1 if its an array thats passed into a function which we dont allocate it
+		if (ident->isArray() && ident->getArrayCount() != -1) {
+            // get type for the ident
+			llvm::Type * type = ident->llvmType(ctx, false);
+
+			// note we pass in nullptr array size because size is set llvm::Type above 
+			decl = build.CreateAlloca(type, nullptr, name);
+
+            // pointer should be 8 byte aligned
+			llvm::cast<llvm::AllocaInst>(decl)->setAlignment(llvm::Align(8));
+			
+			// make a GEP here so we can access it later on without issue
+			std::vector<llvm::Value *> gepIdx;
+			gepIdx.push_back(ctx.mZero);
+			gepIdx.push_back(ctx.mZero);
+			
+            // the Get Element Pointer (GEP) instruction is an instruction to apply 
+            // the pointer offset to the base pointer and return the resultant pointer
+			decl = build.CreateInBoundsGEP(type, gepIdx);
+			
+			// Now write this GEP and save it for this identifier
+			ident->writeTo(ctx, decl);
+		}
+	}
+	
+	// emit all the variables in the child scopes
+	for (auto table : mChildren) {
+		table->codegen(ctx);
+	}
+}
+
 /*
 ------------------------------------------------------
 StringTable methods
@@ -173,5 +286,25 @@ ConstStr * StringTable::getString(const std::string& val) noexcept {
 
         // pointer to value in pair
 		return it->second;
+	}
+}
+
+void StringTable::codegen(CodeContext& ctx) noexcept {
+	for (const auto& s : mStrings) {
+		ConstStr * str = s.second;
+		
+        // make the value 
+		llvm::Constant * strVal = llvm::ConstantDataArray::getString(*ctx.mGlobalContext, str->mText);
+		
+        // make the type
+		llvm::ArrayType * type = llvm::ArrayType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), str->mText.size() + 1);
+
+        // create global var using strVal and type
+		llvm::GlobalValue * globVal = new llvm::GlobalVariable(*ctx.mModule, type, true, llvm::GlobalValue::LinkageTypes::PrivateLinkage, strVal, ".str");
+
+		// this can be "unnamed" since the address location is not significant
+		globVal->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+		
+		str->mValue = globVal;
 	}
 }

@@ -1,6 +1,13 @@
 # Welcome to Crisp
 
-This marks the beginning of my solo compiler project. I will be documenting all my progress for anyone interested in following along. This project is a significant learning experience for me as I am fascinated by compilers and the abstraction they provide to programmers. The programming language (PL) will be a subset of the C programming language, with aspirations to develop a fully functioning front-end and middle-end compiler for the entire C programming language. Given an input .crisp file, the compiler will generate an assembly file for the target architecture, which can then be assembled into binary using the assembler specific to the target architecture.
+This marks the beginning of my solo compiler project. I will be documenting all my progress for anyone interested in following along. This project is a significant learning experience for me as I am fascinated by compilers and the abstraction they provide to programmers. The programming language (PL) will be a subset of the C programming language, with aspirations to develop a fully functioning front-end and middle-end compiler for the entire C programming language. Given an input .crisp file, the compiler will generate a LLVM bitcode file .bc, which can then be compiled into native assembly for some target architecture using LLVM's backend compiler llc, which translates LLVM bitcode to a native code assembly file. From there, using gcc or any other compiler toolchain you can assemble the assembly file into an executable.
+
+Hooking up crisp to LLVM:
+- Clone repo and cd into llvm-project. 
+- Install LLVM's in house linker lld.
+- Run command 'cmake -S llvm -B build -G "Unix Makefiles" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_ENABLE_PROJECTS="lld" -DLLVM_USE_LINKER=lld -DCMAKE_BUILD_TYPE=Release '
+- cd into build and run command 'make' followed by 'make install' after.
+- Had to edit Makefile to deal with libs when linking.
 
 ## Front End Components
 
@@ -62,7 +69,7 @@ Was popular for CISC architectures. Easier to generate complex machine code, e.g
 - **Stack machine:**
 Like Java bytecode. Easier to generate from AST (simple because one operand).
 
-We will use SSA LLVM LIR for many reasons:
+We will use LLVM LIR for many reasons:
 - Easy to produce, understand, and define.
 - Language and target independent for middle-end optimizations.
 - One IR for analysis and optimization.
@@ -71,7 +78,7 @@ We will use SSA LLVM LIR for many reasons:
 
 ### 2. IR Lowering (Syntax-directed Translation)
 
-We want to convert our HIR (AST) to SSA LLVM LIR. 
+We want to convert our HIR (AST) to LLVM LIR. 
 
 We have nested language constructs e.g. while nested within an if statement. 
 We need an algorithmic way to translate.
@@ -83,4 +90,31 @@ Solution (Syntax-directed translation)
 - Define translation for each node in LIR.
 - Recursively translate nodes by walking the AST.
 
-### 3. 
+LLVM IR is machine independent, so we don't need to worry about number of registers.
+Instead, there is an unlimited set of virtual registers labelled (%0, %1, %2, %3) that 
+we read and write from. The backend of LLVM will be responsible for mapping all these virtual
+registers to physical registers in the hardware. 
+
+LLVM IR must be in SSA form. This in simple terms means we can only assign to a virtual register once. 
+
+For example: 
+`
+x = x + 1 
+`
+- Invalid SSA form 
+`
+x2 = x1 + 1 
+`
+- Valid SSA form 
+
+What if we don’t follow SSA in our LLVM IR generation? LLVM allows us to have a workaround for those 
+who don't want to create an additional pass to translate their IR to SSA form. LLVM bitcode supports a stack frame via the alloca, load, and store instructions. This has a downside though as this creates lots of redundant memory operations i.e. stores followed immediately by loads. This is the same approach taken by Clang when it first generates LLVM IR. Clang then later converts the IR to SSA form using the mem2reg pass offered by LLVM API, which implements the canonical Cytron algorithm to generate SSA form and cleans up the redundant operations. 
+
+An alternative solution: 
+- While converting to LLVM IR, maintain SSA form on the fly using an algorithm in a published paper. Refer to the file in the GitHub repo titled SSA_paper.pdf
+
+This is the approach we will be using.
+
+I almost forgot to mention why even use SSA????? The short story is optimization algorithms love SSA form due to the way it simplifies data flow and control flow analysis.
+
+### 3. TODO

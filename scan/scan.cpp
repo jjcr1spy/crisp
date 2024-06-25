@@ -3,7 +3,6 @@
 #include <utility> 
 #include <cctype> 
 #include <iostream>
-#include "token.h"
 #include "scan.h"
 
 Scanner::Scanner(const char * src) noexcept
