@@ -7,7 +7,7 @@ Hooking up the compiler to LLVM API:
 - Install LLVM's in house linker lld.
 - Run command 'cmake -S llvm -B build -G "Unix Makefiles" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_ENABLE_PROJECTS="lld" -DLLVM_USE_LINKER=lld -DCMAKE_BUILD_TYPE=Release '
 - cd into build and run command 'make' followed by 'make install' after.
-- Had to edit Makefile to deal with libs when linking.
+- Edit Makefile to account for LLVM's .o and .h files are when compiling and linking.
 
 ## Front End Components
 

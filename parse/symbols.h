@@ -17,10 +17,11 @@ class ASTFunc;
 // in ../emitIR/emitter.h
 class CodeContext;
 
-// forward declare llvm Value and Type to make compiler happy 
+// forward declare llvm classes to make compiler happy 
 namespace llvm {
     class Value;
     class Type;
+    class LLVMContext;
 }
 
 class Identifier {
@@ -79,11 +80,11 @@ public:
 		return mAddress;
 	}
 	
-	llvm::Type * llvmType(CodeContext& context, bool treatArrayAsPtr = true) noexcept;
+	llvm::Type * llvmType(llvm::LLVMContext& ctx, bool treatArrayAsPtr = true) noexcept;
 	
-	llvm::Value * readFrom(CodeContext& context) noexcept;
+	llvm::Value * readFrom(CodeContext& ctx) noexcept;
 	
-	void writeTo(CodeContext& context, llvm::Value* value) noexcept;
+	void writeTo(CodeContext& ctx, llvm::Value * value) noexcept;
 private:
     // private so only SymbolTable can create Identifier
     Identifier(const std::string& name) noexcept
@@ -218,7 +219,7 @@ public:
 	ConstStr * getString(const std::string& val) noexcept;
 
     // emit the table to the IR constants
-    void codegen(CodeContext& context) noexcept;
+    void codegen(CodeContext& ctx) noexcept;
 private:
 	std::unordered_map<std::string, ConstStr *> mStrings;
 };

@@ -3,16 +3,17 @@
 #include "../parse/symbols.h"
 #include "emitter.h"
 
-using namespace llvm;
+// note all llvm headers are in emitter.h
 
 CodeContext::CodeContext(StringTable& strings) noexcept
-: mGlobalContext {std::make_unique<LLVMContext>()}
-, mBuilder {std::make_unique<IRBuilder<>>(*mGlobalContext)}
-, mModule {std::make_unique<Module>("crisp compiler", *mGlobalContext)}
+: mGlobalContext {std::make_unique<llvm::LLVMContext>()}
+, mBuilder {std::make_unique<llvm::IRBuilder<>>(*mGlobalContext)}
+, mModule {std::make_unique<llvm::Module>("crisp compiler", *mGlobalContext)}
 , mStrings {strings}
 , mFunc {nullptr}
 , mBlock {nullptr}
-, mPrintfIdent {nullptr} { }
+, mPrintfIdent {nullptr} 
+, mSSA {*mGlobalContext} { }
 
 Emitter::Emitter(Parser& parser) noexcept
 : mCodeContext {parser.mStringTable} {

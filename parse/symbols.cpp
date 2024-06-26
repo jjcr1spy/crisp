@@ -3,55 +3,57 @@
 #include "../emitIR/emitter.h"
 #include "symbols.h"
 
+// note all llvm headers are in emitter.h
+
 /*
 ------------------------------------------------------
 Identifier methods
 */ 
 
-llvm::Type * Identifier::llvmType(CodeContext& ctx, bool treatArrayAsPtr) noexcept {
+llvm::Type * Identifier::llvmType(llvm::LLVMContext& ctx, bool treatArrayAsPtr) noexcept {
     llvm::Type * type = nullptr;
 
     switch (mType) {
         case Type::Void:
-            type = llvm::Type::getVoidTy(*ctx.mGlobalContext);
+            type = llvm::Type::getVoidTy(ctx);
 
             break;
         case Type::Char:
-            type = llvm::Type::getInt8Ty(*ctx.mGlobalContext);
+            type = llvm::Type::getInt8Ty(ctx);
 
             break;
         case Type::Int:
-            type = llvm::Type::getInt32Ty(*ctx.mGlobalContext);
+            type = llvm::Type::getInt32Ty(ctx);
 
             break;
         case Type::Double:
-            type = llvm::Type::getDoubleTy(*ctx.mGlobalContext);
+            type = llvm::Type::getDoubleTy(ctx);
 
             break;
         case Type::CharArray:
             // treating array as pointer?
             if (treatArrayAsPtr) {
-                type = llvm::PointerType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), 0);
+                type = llvm::PointerType::get(llvm::Type::getInt8Ty(ctx), 0);
             } else {
-                type = llvm::ArrayType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), mElemCount);
+                type = llvm::ArrayType::get(llvm::Type::getInt8Ty(ctx), mElemCount);
             }
 
             break;
         case Type::IntArray:
             // treating array as pointer?
             if (treatArrayAsPtr) {
-                type = llvm::PointerType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), 0);
+                type = llvm::PointerType::get(llvm::Type::getInt8Ty(ctx), 0);
             } else {
-                type = llvm::ArrayType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), mElemCount);
+                type = llvm::ArrayType::get(llvm::Type::getInt8Ty(ctx), mElemCount);
             }
 
             break;
         case Type::DoubleArray:
             // treating array as pointer?
             if (treatArrayAsPtr) {
-                type = llvm::PointerType::get(llvm::Type::getDoubleTy(*ctx.mGlobalContext), 0);
+                type = llvm::PointerType::get(llvm::Type::getDoubleTy(ctx), 0);
             } else {
-                type = llvm::ArrayType::get(llvm::Type::getDoubleTy(*ctx.mGlobalContext), mElemCount);
+                type = llvm::ArrayType::get(llvm::Type::getDoubleTy(ctx), mElemCount);
             }
 
             break;
@@ -61,15 +63,17 @@ llvm::Type * Identifier::llvmType(CodeContext& ctx, bool treatArrayAsPtr) noexce
 
     return type;
 }
-	
-llvm::Value * Identifier::readFrom(CodeContext& ctx) noexcept {
 
+llvm::Value * Identifier::readFrom(CodeContext& ctx) noexcept {
+	llvm::Value * retVal = ctx.mSSA.readVariable(this, ctx.mBlock);
+	
+    return retVal;
 }
 	
 void Identifier::writeTo(CodeContext& ctx, llvm::Value * value) noexcept {
-    
+    // use the custom SSA class to generate proper virtual register
+    ctx.mSSA.writeVariable(this, ctx.mBlock, value);
 }
-
 
 /*
 ------------------------------------------------------
@@ -229,7 +233,7 @@ void ScopeTable::codegen(CodeContext& ctx) noexcept {
 		// getArrayCount() is -1 if its an array thats passed into a function which we dont allocate it
 		if (ident->isArray() && ident->getArrayCount() != -1) {
             // get type for the ident
-			llvm::Type * type = ident->llvmType(ctx, false);
+			llvm::Type * type = ident->llvmType(*ctx.mGlobalContext, false);
 
 			// note we pass in nullptr array size because size is set llvm::Type above 
 			decl = build.CreateAlloca(type, nullptr, name);
@@ -239,14 +243,14 @@ void ScopeTable::codegen(CodeContext& ctx) noexcept {
 			
 			// make a GEP here so we can access it later on without issue
 			std::vector<llvm::Value *> gepIdx;
-			gepIdx.push_back(ctx.mZero);
-			gepIdx.push_back(ctx.mZero);
+			gepIdx.push_back(llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)));
+			gepIdx.push_back(llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)));
 			
             // the Get Element Pointer (GEP) instruction is an instruction to apply 
             // the pointer offset to the base pointer and return the resultant pointer
-			decl = build.CreateInBoundsGEP(type, gepIdx);
+            decl = build.CreateInBoundsGEP(type, decl, gepIdx);
 			
-			// Now write this GEP and save it for this identifier
+			// wow write this GEP and save it for this identifier
 			ident->writeTo(ctx, decl);
 		}
 	}

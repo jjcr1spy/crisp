@@ -1,6 +1,8 @@
 #include "../parse/astNodes.h"
 #include "emitter.h"
 
+// note all llvm headers are in emitter.h
+
 llvm::Value * ASTProg::codegen(CodeContext& ctx) const noexcept {
     // add global constant strings from StringTable to module 
 	ctx.mStrings.codegen(ctx);
@@ -66,8 +68,8 @@ llvm::Value * ASTFunc::codegen(CodeContext& ctx) const noexcept {
 		std::vector<llvm::Type *> args;
 
 		for (auto arg : mArgs) {
-            // calling llvmType return LLVM Value for said argument  
-			args.push_back(arg->getIdent().llvmType(ctx));
+            // llvmType returns LLVM Value for said argument  
+			args.push_back(arg->getIdent().llvmType(*ctx.mGlobalContext));
 		}
 		
 		funcType = llvm::FunctionType::get(retType, args, false);
@@ -76,12 +78,18 @@ llvm::Value * ASTFunc::codegen(CodeContext& ctx) const noexcept {
 	// create function and make it the current one
 	ctx.mFunc = llvm::Function::Create(funcType, llvm::GlobalValue::LinkageTypes::ExternalLinkage, mIdent.getName(), *ctx.mModule);
 	
+    // wow that we have a new function reset our SSA builder
+	ctx.mSSA.reset();
+
 	// map the ident to this function
 	mIdent.setAddress(ctx.mFunc);
 	
 	// create function and make it the current one
 	ctx.mBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "entry block", ctx.mFunc);
 	
+    // add and seal this block
+	ctx.mSSA.addBlock(ctx.mBlock, true);
+
 	// if we have arguments we need to set the name/value of them
 	if (mArgs.size() > 0) {
 		llvm::Function::arg_iterator iter = ctx.mFunc->arg_begin();
@@ -90,15 +98,9 @@ llvm::Value * ASTFunc::codegen(CodeContext& ctx) const noexcept {
         int i = 0;
 		while (iter != end) {
 			Identifier& argIdent = mArgs[i]->getIdent();
-			iter->setName(argIdent.getName());
 			
-			// PA5: Remove the setAddress call
-			// (Technically, iter actually has the value of the
-			// arg, not its address...but we will use the address
-			// member for this value)
-			// argIdent.setAddress(iter);
+            iter->setName(argIdent.getName());
 			
-			// PA5: Write to this identifier
 			argIdent.writeTo(ctx, iter);
 			
 			++i;
@@ -118,6 +120,7 @@ llvm::Value * ASTFunc::codegen(CodeContext& ctx) const noexcept {
 }
 
 llvm::Value * ASTArgDecl::codegen(CodeContext& ctx) const noexcept {
+
 }
 
 llvm::Value * ASTDecl::codegen(CodeContext& ctx) const noexcept {

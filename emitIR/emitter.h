@@ -1,5 +1,5 @@
 /*
-defines the LLVM IR Emitter class which is used for codegen aswell as a helper struct to store all LLVM info for program
+defines the LLVM IR Emitter class which is used for codegen aswell as a helper struct CodeContext to store all LLVM info for program
 */
 
 #ifndef EMITTER_H
@@ -14,6 +14,9 @@ defines the LLVM IR Emitter class which is used for codegen aswell as a helper s
 #include "llvm/IR/Value.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/Support/Casting.h"
+#include "ssaBuilder.h"
 
 // in ../parse/symbols.h
 class StringTable; class Identifier;
@@ -48,6 +51,9 @@ struct CodeContext {
 
     // non-null if we need extern printf
     Identifier * mPrintfIdent;
+
+    // helper class to construct SSA LLVM IR
+    SSABuilder mSSA;
 };
 
 class Emitter {
@@ -58,6 +64,7 @@ public:
     // print bitcode to stdout
     void print() noexcept;
 private:
+    // store all LLVM IR info
 	CodeContext mCodeContext;
 };
 

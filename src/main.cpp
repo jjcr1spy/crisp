@@ -62,6 +62,7 @@ int main(int argc, char * argv[]) {
 
         // LLVM IR generation
         Emitter emit {parser};
+        
 
         // verify no problems with IR gen
 
