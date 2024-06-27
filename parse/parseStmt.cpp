@@ -264,6 +264,8 @@ std::shared_ptr<ASTForStmt> Parser::parseForStmt() {
 	std::shared_ptr<ASTForStmt> retVal;
 	
 	if (peekAndConsume(TokenType::KeyFor)) {
+		// TODO
+
 		// matchToken(TokenType::LParen);
 
         // // should be decl or assignment or empty

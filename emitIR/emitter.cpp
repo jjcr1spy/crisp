@@ -22,7 +22,7 @@ Emitter::Emitter(Parser& parser) noexcept
 	}
 		
 	// this is what kicks off the generation of the LLVM IR from the AST
-	parser.mRoot->codegen(mCodeContext);
+	// parser.mRoot->codegen(mCodeContext);
 }
 
 void Emitter::print() noexcept {

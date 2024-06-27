@@ -3,7 +3,7 @@
 
 // note all llvm headers are in emitter.h
 
-llvm::Value * ASTProg::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTProg::codegen(CodeContext& ctx) noexcept {
     // add global constant strings from StringTable to module 
 	ctx.mStrings.codegen(ctx);
 
@@ -31,7 +31,7 @@ llvm::Value * ASTProg::codegen(CodeContext& ctx) const noexcept {
     }
 
     // emit code for all the functions
-	for (auto f : mFuncs) {
+	for (auto f : this->mFuncs) {
 		f->codegen(ctx);
 	}
 
@@ -39,7 +39,7 @@ llvm::Value * ASTProg::codegen(CodeContext& ctx) const noexcept {
 	return nullptr;
 }
 
-llvm::Value * ASTFunc::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTFunc::codegen(CodeContext& ctx) noexcept {
     llvm::FunctionType * funcType = nullptr;
 	
 	// get the return type 
@@ -113,84 +113,207 @@ llvm::Value * ASTFunc::codegen(CodeContext& ctx) const noexcept {
 	// add all the declarations for variables created in this function
 	mScopeTable.codegen(ctx);
 	
-	// Now emit the body
-	mBody->codegen(ctx);
+	// now emit the body
+	this->mBody->codegen(ctx);
 	
 	return ctx.mFunc;
 }
 
-llvm::Value * ASTArgDecl::codegen(CodeContext& ctx) const noexcept {
-
+// nothing to emit
+llvm::Value * ASTArgDecl::codegen(CodeContext& ctx) noexcept {
+    return nullptr;
 }
 
-llvm::Value * ASTDecl::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTDecl::codegen(CodeContext& ctx) noexcept {
+    // if there is an expression emit this and store it in the ident
+	if (mExpr) {
+		llvm::Value * declExpr = this->mExpr->codegen(ctx);
+		
+		llvm::IRBuilder<> build(ctx.mBlock);
+		// If this is a string, we have to memcpy
+		if (declExpr->getType()->isPointerTy()) {
+			// this address should already be saved
+			llvm::Value * arrayLoc = mIdent.readFrom(ctx);
+			
+			// GEP the address of the src
+			std::vector<llvm::Value *> gepIdx;
+			gepIdx.push_back(llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)));
+			gepIdx.push_back(llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)));
+            
+			llvm::Value *  src = build.CreateGEP(declExpr->getType(), declExpr, gepIdx);
+
+			// memcpy into the array
+			// memcpy(dest, src, size, align, volatile)
+			build.CreateMemCpy(arrayLoc, llvm::MaybeAlign(1), src, llvm::MaybeAlign(1), mIdent.getArrayCount(), false);
+		} else {
+			// basic types can just be written
+			mIdent.writeTo(ctx, declExpr);
+		}
+	}
+	
+	return nullptr;
 }
 
-llvm::Value * ASTCompoundStmt::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTCompoundStmt::codegen(CodeContext& ctx) noexcept {
+    for (auto &x : this->mStmts) x->codegen(ctx);
+
+	return nullptr;
 }
 
-llvm::Value * ASTIfStmt::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTIfStmt::codegen(CodeContext& ctx) noexcept {
+    auto value = this->mExpr->codegen(ctx);
+
+    llvm::IRBuilder<> builder(ctx.mBlock);
+
+    // check bool
+    if (!value->getType()->isIntegerTy(1)) {
+        // if not bool make it
+        value = builder.CreateICmpNE(value, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext))); 
+    }
+    
+    auto thenBody = llvm::BasicBlock::Create(*ctx.mGlobalContext, "if.then", ctx.mFunc);
+    ctx.mSSA.addBlock(thenBody, true);
+
+    auto end = llvm::BasicBlock::Create(*ctx.mGlobalContext, "if.end", ctx.mFunc);
+    ctx.mSSA.addBlock(end);
+
+    if (mElseStmt) {
+        auto elseBody = llvm::BasicBlock::Create(*ctx.mGlobalContext, "if.else", ctx.mFunc);
+
+        ctx.mSSA.addBlock(elseBody, true);
+        builder.CreateCondBr(value, thenBody, elseBody);
+
+        ctx.mBlock = elseBody;
+
+        mElseStmt->codegen(ctx);
+        
+        llvm::IRBuilder<> builderElse(ctx.mBlock);
+        builderElse.CreateBr(end);
+    } else { 
+        builder.CreateCondBr(value, thenBody, end);
+    }
+    
+    ctx.mBlock = thenBody;
+
+    mThenStmt->codegen(ctx);
+
+    llvm::IRBuilder<> builderThen(ctx.mBlock);
+    builderThen.CreateBr(end);
+
+    ctx.mSSA.sealBlock(end);
+
+    ctx.mBlock = end;
+
+	return nullptr;
 }
 
-llvm::Value * ASTReturnStmt::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTReturnStmt::codegen(CodeContext& ctx) noexcept {
+    llvm::IRBuilder<> builder(ctx.mBlock);
+
+    if (this->mExpr) builder.CreateRet(this->mExpr->codegen(ctx));
+    else builder.CreateRetVoid();
+
+	return nullptr;
 }
 
-llvm::Value * ASTForStmt::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTForStmt::codegen(CodeContext& ctx) noexcept {
+    // TODO
+    return nullptr;
 }
 
-llvm::Value * ASTWhileStmt::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTWhileStmt::codegen(CodeContext& ctx) noexcept {
+    auto cond = llvm::BasicBlock::Create(*ctx.mGlobalContext, "while.cond", ctx.mFunc);
+    ctx.mSSA.addBlock(cond);
+    
+    llvm::IRBuilder<> builder(ctx.mBlock);
+    builder.CreateBr(cond); // unconditional branch in predecessor
+
+    ctx.mBlock = cond;
+
+    auto value = this->mExpr->codegen(ctx);
+    llvm::IRBuilder<> builderCond(ctx.mBlock);
+
+    // check bool
+    if (!value->getType()->isIntegerTy(1)) {
+        // if not bool make it
+        value = builder.CreateICmpNE(value, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext))); 
+    }
+
+    // after exprs codegen
+    auto body = llvm::BasicBlock::Create(*ctx.mGlobalContext, "while.body", ctx.mFunc); 
+    ctx.mSSA.addBlock(body, true);
+
+    // conditional branch in while.cond
+    auto end = llvm::BasicBlock::Create(*ctx.mGlobalContext, "while.end", ctx.mFunc);
+    ctx.mSSA.addBlock(end, true);
+    builderCond.CreateCondBr(value, body, end); 
+
+    ctx.mBlock = body;
+    this->mLoopStmt->codegen(ctx);
+    llvm::IRBuilder<> builderBody(ctx.mBlock);
+    builderBody.CreateBr(cond);
+    ctx.mSSA.sealBlock(cond);
+    ctx.mBlock = end;
+    
+	return nullptr;
 }
 
-llvm::Value * ASTExprStmt::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTExprStmt::codegen(CodeContext& ctx) noexcept {
+    // todo
 }
 
-llvm::Value * ASTNullStmt::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTIdentExpr::codegen(CodeContext& ctx) noexcept {
+    return this->mIdent.readFrom(ctx);
 }
 
-llvm::Value * ASTIdentExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTArrayExpr::codegen(CodeContext& ctx) noexcept {
+    // todo
 }
 
-llvm::Value * ASTArrayExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTAssignOp::codegen(CodeContext& ctx) noexcept {
+    // todo
 }
 
-llvm::Value * ASTAssignOp::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTFuncExpr::codegen(CodeContext& ctx) noexcept {
+    // todo
 }
 
-llvm::Value * ASTFuncExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTLogicalAnd::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTLogicalAnd::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTLogicalOr::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTLogicalOr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTBinaryCmpOp::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTBinaryCmpOp::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTBinaryMathOp::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTBinaryMathOp::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTNotExpr::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTNotExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTIncExpr::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTIncExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTDecExpr::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTDecExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTAddrOfArray::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTAddrOfArray::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTStringExpr::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTStringExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTConstantExpr::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTConstantExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTDoubleExpr::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTDoubleExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTCharExpr::codegen(CodeContext& ctx) noexcept {
 }
 
-llvm::Value * ASTCharExpr::codegen(CodeContext& ctx) const noexcept {
+llvm::Value * ASTNullStmt::codegen(CodeContext& ctx) noexcept {
+    return nullptr;
 }
