@@ -191,7 +191,6 @@ std::shared_ptr<ASTStmt> Parser::parseStmt() {
 		else if ((retVal = parseNullStmt()));
 		else if ((retVal = parseIfStmt()));
 		else if ((retVal = parseDecl()));
-		else if ((retVal = parseExprStmt()));
 	} catch (ParseExcept& e) {
 		reportError(e);
 		

@@ -64,10 +64,8 @@ llvm::Type * Identifier::llvmType(llvm::LLVMContext& ctx, bool treatArrayAsPtr) 
     return type;
 }
 
-llvm::Value * Identifier::readFrom(CodeContext& ctx) noexcept {
-	llvm::Value * retVal = ctx.mSSA.readVariable(this, ctx.mBlock);
-	
-    return retVal;
+llvm::Value * Identifier::readFrom(CodeContext& ctx) noexcept {	
+    return ctx.mSSA.readVariable(this, ctx.mBlock);
 }
 	
 void Identifier::writeTo(CodeContext& ctx, llvm::Value * value) noexcept {

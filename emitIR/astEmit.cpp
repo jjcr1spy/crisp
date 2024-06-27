@@ -259,7 +259,9 @@ llvm::Value * ASTWhileStmt::codegen(CodeContext& ctx) noexcept {
 }
 
 llvm::Value * ASTExprStmt::codegen(CodeContext& ctx) noexcept {
-    // todo
+    this->mExpr->codegen(ctx);
+
+    return nullptr;
 }
 
 llvm::Value * ASTIdentExpr::codegen(CodeContext& ctx) noexcept {
@@ -267,51 +269,427 @@ llvm::Value * ASTIdentExpr::codegen(CodeContext& ctx) noexcept {
 }
 
 llvm::Value * ASTArrayExpr::codegen(CodeContext& ctx) noexcept {
-    // todo
+    // evaluate the sub expression to get the desired index
+	llvm::Value * arrayIdx = this->mExpr->codegen(ctx);
+	
+	// this address should already be saved
+	llvm::Value * addr = mIdent.readFrom(ctx);
+	
+	// GEP from the array address
+	llvm::IRBuilder<> build(ctx.mBlock);
+
+    // generate the array subscript which will give us the address
+	llvm::Value * gep = build.CreateInBoundsGEP(addr->getType(), addr, arrayIdx);
+	
+	// this still needs to be a loaded because arrays are in memory
+	return build.CreateLoad(addr->getType(), addr);
 }
 
 llvm::Value * ASTAssignOp::codegen(CodeContext& ctx) noexcept {
-    // todo
+    llvm::Value * retVal = nullptr;
+
+    llvm::IRBuilder<> build(ctx.mBlock);
+
+    llvm::Value * lhs = this->mLHS->codegen(ctx);
+    llvm::Value * rhs = this->mRHS->codegen(ctx);
+
+    // do we have an ASTIdentExpr or ASTIdentExpr
+    if (auto check = std::dynamic_pointer_cast<ASTArrayExpr>(this->mLHS)) { 
+        // for array idents
+        switch (this->mOp) {
+            case TokenType::Assign:
+                build.CreateStore(rhs, lhs);
+                
+                // store the result back into lhs
+                retVal = rhs;
+
+                break;
+            case TokenType::DecAssign: {
+                llvm::Value * subValue = build.CreateSub(lhs, rhs, "-=");
+
+                // store the result back into lhs
+                build.CreateStore(subValue, lhs);
+
+                retVal = subValue;
+
+                break;
+            }
+            case TokenType::IncAssign: {
+                llvm::Value * incValue = build.CreateAdd(lhs, rhs);
+
+                // store the result back into lhs
+                build.CreateStore(incValue, lhs, "+=");
+
+                retVal = incValue;
+
+                break;
+            }
+            default:
+                break;
+        }
+    } else if (auto check = std::dynamic_pointer_cast<ASTIdentExpr>(this->mLHS)) { 
+        // for idents
+        switch (this->mOp) {
+            case TokenType::Assign:
+                check->mIdent.writeTo(ctx, rhs);  
+
+                // store the result back into lhs
+                retVal = rhs;
+
+                break;
+            case TokenType::DecAssign: {
+                llvm::Value * subValue = build.CreateSub(lhs, rhs, "-=");
+
+                // store the result back into lhs
+                check->mIdent.writeTo(ctx, subValue);  
+
+                retVal = subValue;
+
+                break;
+            }
+            case TokenType::IncAssign: {
+                llvm::Value * incValue = build.CreateAdd(lhs, rhs, "+=");
+
+                // store the result back into lhs
+                check->mIdent.writeTo(ctx, incValue);  
+
+                retVal = incValue;
+
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    // assign is an expr so we need to return a value
+	return retVal;
 }
 
 llvm::Value * ASTFuncExpr::codegen(CodeContext& ctx) noexcept {
-    // todo
+    // at this point we can assume the argument types match
+	// create the list of arguments
+	std::vector<llvm::Value *> callList;
+	for (auto arg : this->mArgs) {
+		llvm::Value * argValue = arg->codegen(ctx);
+		// if this is an array or ptr we need to change this to a getelemptr
+		// provided it already isn't one
+		if (!llvm::isa<llvm::GetElementPtrInst>(argValue) && argValue->getType()->isPointerTy()) {
+			if (argValue->getType()->isArrayTy()) {
+				llvm::IRBuilder<> build(ctx.mBlock);
+
+				std::vector<llvm::Value*> gepIdx;
+				gepIdx.push_back(llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)));
+				gepIdx.push_back(llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)));
+				
+				argValue = build.CreateInBoundsGEP(argValue->getType(), argValue, gepIdx);
+			} else {
+				llvm::IRBuilder<> build(ctx.mBlock);				
+				// need to return the address of the specific index in question so need a GEP
+				argValue = build.CreateInBoundsGEP(argValue->getType(), argValue, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)));
+			}
+		}
+			
+		callList.push_back(argValue);
+	}
+	
+	// now call the function and return it
+	llvm::Value * retVal = nullptr;
+	
+	llvm::IRBuilder<> build(ctx.mBlock);
+
+    // get the llvm function 
+    llvm::Function * func = llvm::cast<llvm::Function>(this->mIdent.getAddress());
+
+    // create callable entity in LLVM IR
+    llvm::FunctionCallee funcCallee(func);
+    
+	if (this->mType != Type::Void) {
+		retVal = build.CreateCall(funcCallee, callList, "call");
+	} else {
+		build.CreateCall(funcCallee, callList, "call-void");
+	}
+	
+	return retVal;
 }
 
-llvm::Value * ASTLogicalAnd::codegen(CodeContext& ctx) noexcept {
+llvm::Value * ASTLogicalAnd::codegen(CodeContext& ctx) noexcept {	
+	// create the block for the RHS
+	llvm::BasicBlock * rhsBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "and.rhs", ctx.mFunc);
+	
+    // add the rhs block to SSA (not sealed)
+	ctx.mSSA.addBlock(rhsBlock);
+	
+	// in both "true" and "false" condition we will jump to and.end
+	// this is because we will insert a phi node that assumes false
+	// if the and.end jump was from the lhs block
+	llvm::BasicBlock * endBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "and.end", ctx.mFunc);
+	
+    // also not sealed
+	ctx.mSSA.addBlock(endBlock);
+	
+	// now generate the LHS
+	llvm::Value * lhsVal = mLHS->codegen(ctx);
+
+	llvm::BasicBlock * lhsBlock = ctx.mBlock;
+	
+	// add the branch to the end of the LHS
+	{
+		llvm::IRBuilder<> build(ctx.mBlock);
+		// we can assume it will be an i32 here
+		// since it would have been zero-extended otherwise
+		lhsVal = build.CreateICmpNE(lhsVal, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)), "tobool");
+		build.CreateCondBr(lhsVal, rhsBlock, endBlock);
+	}
+	
+	// rhsBlock should now be sealed
+	ctx.mSSA.sealBlock(rhsBlock);
+	
+	// code should now be generated in the RHS block
+	ctx.mBlock = rhsBlock;
+
+	llvm::Value * rhsVal = mRHS->codegen(ctx);
+	
+	// this is the final RHS block (for the phi node)
+	rhsBlock = ctx.mBlock;
+	
+	// add the branch and the end of the RHS
+	{
+		llvm::IRBuilder<> build(ctx.mBlock);
+		rhsVal = build.CreateICmpNE(rhsVal, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)), "tobool");
+		
+		// We do an unconditional branch because the phi mode will handle
+		// the correct value
+		build.CreateBr(endBlock);
+	}
+	
+	// endBlock should now be sealed
+	ctx.mSSA.sealBlock(endBlock);
+	
+	ctx.mBlock = endBlock;
+	
+	llvm::IRBuilder<> build(ctx.mBlock);
+	
+	// figure out the value to zext
+	llvm::Value * zextVal = nullptr;
+	
+	// if rhs is true we need to make a phi
+	if (rhsVal != llvm::ConstantInt::getFalse(*ctx.mGlobalContext)) {
+		llvm::PHINode * phi = build.CreatePHI(llvm::Type::getInt1Ty(*ctx.mGlobalContext), 2);
+		
+        // if we came from the lhs it had to be false
+		phi->addIncoming(llvm::ConstantInt::getFalse(*ctx.mGlobalContext), lhsBlock);
+		
+        phi->addIncoming(rhsVal, rhsBlock);
+
+		zextVal = phi;
+	} else {
+		zextVal = llvm::ConstantInt::getFalse(*ctx.mGlobalContext);
+	}
+	
+	return build.CreateZExt(zextVal, llvm::Type::getInt32Ty(*ctx.mGlobalContext));
 }
 
 llvm::Value * ASTLogicalOr::codegen(CodeContext& ctx) noexcept {
+	// create the block for the RHS
+	llvm::BasicBlock * rhsBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "or.rhs", ctx.mFunc);
+	
+    // add the rhs block to SSA (not sealed)
+	ctx.mSSA.addBlock(rhsBlock);
+	
+	// in both "true" and "false" condition we will jump to and.end
+	// this is because we will insert a phi node that assumes false
+	// if the and.end jump was from the lhs block
+	llvm::BasicBlock * endBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "or.end", ctx.mFunc);
+	
+    // also not sealed
+	ctx.mSSA.addBlock(endBlock);
+	
+	// now generate the LHS
+	llvm::Value * lhsVal = mLHS->codegen(ctx);
+
+	llvm::BasicBlock * lhsBlock = ctx.mBlock;
+	
+	// add the branch to the end of the LHS
+	{
+		llvm::IRBuilder<> build(ctx.mBlock);
+		// we can assume it will be an i32 here
+		// since it would have been zero-extended otherwise
+		lhsVal = build.CreateICmpNE(lhsVal, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)), "tobool");
+		build.CreateCondBr(lhsVal, rhsBlock, endBlock);
+	}
+	
+	// rhsBlock should now be sealed
+	ctx.mSSA.sealBlock(rhsBlock);
+	
+	// code should now be generated in the RHS block
+	ctx.mBlock = rhsBlock;
+
+	llvm::Value * rhsVal = mRHS->codegen(ctx);
+	
+	// this is the final RHS block (for the phi node)
+	rhsBlock = ctx.mBlock;
+	
+	// add the branch and the end of the RHS
+	{
+		llvm::IRBuilder<> build(ctx.mBlock);
+		rhsVal = build.CreateICmpNE(rhsVal, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)), "tobool");
+		
+		// We do an unconditional branch because the phi mode will handle
+		// the correct value
+		build.CreateBr(endBlock);
+	}
+	
+	// endBlock should now be sealed
+	ctx.mSSA.sealBlock(endBlock);
+	
+	ctx.mBlock = endBlock;
+	
+	llvm::IRBuilder<> build(ctx.mBlock);
+	
+	// figure out the value to zext
+	llvm::Value * zextVal = nullptr;
+	
+	// if rhs is false we need to make a phi
+	if (rhsVal != llvm::ConstantInt::getTrue(*ctx.mGlobalContext)) {
+		llvm::PHINode * phi = build.CreatePHI(llvm::Type::getInt1Ty(*ctx.mGlobalContext), 2);
+		
+        // if we came from the lhs it had to be true
+		phi->addIncoming(llvm::ConstantInt::getTrue(*ctx.mGlobalContext), lhsBlock);
+		
+        phi->addIncoming(rhsVal, rhsBlock);
+
+		zextVal = phi;
+	} else {
+		zextVal = llvm::ConstantInt::getTrue(*ctx.mGlobalContext);
+	}
+	
+	return build.CreateZExt(zextVal, llvm::Type::getInt32Ty(*ctx.mGlobalContext));
 }
 
 llvm::Value * ASTBinaryCmpOp::codegen(CodeContext& ctx) noexcept {
+    llvm::Value * retVal = nullptr;
+	
+    llvm::IRBuilder<> builder(ctx.mBlock);
+    
+    llvm::Value * rhs = this->mRHS->codegen(ctx);
+    llvm::Value * lhs = this->mLHS->codegen(ctx);
+    
+    switch (this->mOp) {
+        case TokenType::EqualTo:
+            retVal = builder.CreateICmpEQ(lhs, rhs, "==");
+            break;
+        case TokenType::NotEqual:
+            retVal = builder.CreateICmpNE(lhs, rhs, "!=");
+            break;
+        case TokenType::GreaterThan:
+            retVal = builder.CreateICmpSGT(lhs, rhs, ">");
+            break;
+        case TokenType::LessThan:
+            retVal = builder.CreateICmpSLT(lhs, rhs, "<");
+            break;
+        case TokenType::GThanOrEq:
+            retVal = builder.CreateICmpSGE(lhs, rhs, ">=");
+            break;
+        case TokenType::LThanOrEq:
+            retVal = builder.CreateICmpSLE(lhs, rhs, "<=");
+            break;
+        default:
+            break;
+    }
+	
+	return retVal;
 }
 
 llvm::Value * ASTBinaryMathOp::codegen(CodeContext& ctx) noexcept {
+        llvm::Value * retVal = nullptr;
+	
+    llvm::IRBuilder<> builder(ctx.mBlock);
+    
+    llvm::Value * rhs = this->mRHS->codegen(ctx);
+    llvm::Value * lhs = this->mLHS->codegen(ctx);
+    
+    switch (this->mOp) {
+        case TokenType::Plus:
+            retVal = builder.CreateAdd(lhs, rhs, "+");
+            break;
+        case TokenType::Minus:
+            retVal = builder.CreateSub(lhs, rhs, "-");
+            break;
+        case TokenType::Mult:
+            retVal = builder.CreateMul(lhs, rhs, "*");
+            break;
+        case TokenType::Div:
+            retVal = builder.CreateSDiv(lhs, rhs, "/");
+            break;
+        case TokenType::Mod:
+            retVal = builder.CreateSRem(lhs, rhs, "%");
+            break;
+        default:
+            break;
+    }
+	
+	return retVal;
 }
 
 llvm::Value * ASTNotExpr::codegen(CodeContext& ctx) noexcept {
+    llvm::Value * retVal = nullptr;
+	
+    llvm::IRBuilder<> builder(ctx.mBlock);
+
+	llvm::Value * value = this->mExpr->codegen(ctx);
+
+    value = builder.CreateICmpEQ(value, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)));
+    
+    retVal = builder.CreateZExt(value, llvm::Type::getInt32Ty(*ctx.mGlobalContext));
+
+	return retVal;
 }
 
 llvm::Value * ASTIncExpr::codegen(CodeContext& ctx) noexcept {
+	llvm::IRBuilder<> builder(ctx.mBlock);
+
+    llvm::Value * value = mIdent.readFrom(ctx);
+
+    // use the same type as value
+    value = builder.CreateAdd(value, llvm::ConstantInt::get(value->getType(), 1), "++ident");
+
+    mIdent.writeTo(ctx, value);
+
+	return value;
 }
 
 llvm::Value * ASTDecExpr::codegen(CodeContext& ctx) noexcept {
+    llvm::IRBuilder<> builder(ctx.mBlock);
+
+    llvm::Value * value = mIdent.readFrom(ctx);
+
+    // use the same type as value
+    value = builder.CreateSub(value, llvm::ConstantInt::get(value->getType(), 1), "--ident");
+
+    mIdent.writeTo(ctx, value);
+
+	return value;
 }
 
 llvm::Value * ASTAddrOfArray::codegen(CodeContext& ctx) noexcept {
+	return this->mArray->codegen(ctx);
 }
 
 llvm::Value * ASTStringExpr::codegen(CodeContext& ctx) noexcept {
+    return this->mString->getValue();
 }
 
 llvm::Value * ASTConstantExpr::codegen(CodeContext& ctx) noexcept {
+    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*ctx.mGlobalContext), mValue);
 }
 
 llvm::Value * ASTDoubleExpr::codegen(CodeContext& ctx) noexcept {
+    return llvm::ConstantInt::get(llvm::Type::getDoubleTy(*ctx.mGlobalContext), mValue);
 }
 
 llvm::Value * ASTCharExpr::codegen(CodeContext& ctx) noexcept {
+    return llvm::ConstantInt::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), mValue);
 }
 
 llvm::Value * ASTNullStmt::codegen(CodeContext& ctx) noexcept {

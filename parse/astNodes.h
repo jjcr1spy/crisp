@@ -265,6 +265,9 @@ protected:
 // id
 class ASTIdentExpr : public ASTExpr {
 public:
+	// so it can access mIdent
+	friend class ASTAssignOp;
+
 	ASTIdentExpr(Identifier& ident) noexcept
 	: mIdent {ident} {
 		mType = mIdent.getType();
@@ -281,6 +284,9 @@ private:
 // id [ Expr ]
 class ASTArrayExpr : public ASTExpr {
 public:
+	// so it can access mIdent
+	friend class ASTAssignOp;
+
 	ASTArrayExpr(Identifier& ident, std::shared_ptr<ASTExpr> expr) noexcept
 	: mExpr {expr}
 	, mIdent {ident} {
