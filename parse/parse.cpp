@@ -242,7 +242,7 @@ std::shared_ptr<ASTProg> Parser::parseProgram() {
 std::shared_ptr<ASTFunc> Parser::parseFunction() {
 	std::shared_ptr<ASTFunc> retVal;
 
-	if (peekIsOneOf({TokenType::KeyVoid, TokenType::KeyDouble, TokenType::KeyInt, TokenType::KeyChar})) {
+	if (peekIsOneOf({TokenType::KeyVoid, TokenType::KeyDouble, TokenType::KeyInt, TokenType::KeyChar})) {		
 		Type retType;
 
 		switch (mCurrToken.mType) {
@@ -323,7 +323,7 @@ std::shared_ptr<ASTFunc> Parser::parseFunction() {
 		ScopeTable * table = mSymbolTable.enterScope();
 
 		retVal = std::make_shared<ASTFunc>(*ident, retType, *table);
-
+		
 		if (!ident->isDummy()) {
 			ident->setFunction(retVal);
 		}

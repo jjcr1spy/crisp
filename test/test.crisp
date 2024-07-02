@@ -1,0 +1,13 @@
+void test(int x) {
+	//int pivotIdx = 5;
+	if (1 == 2) {
+		int x = 5;
+	} else {
+		int y = 5; 
+	}
+}
+
+int main() {
+
+	return 0;
+}

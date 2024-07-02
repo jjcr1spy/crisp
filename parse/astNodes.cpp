@@ -30,10 +30,6 @@ void ASTFuncExpr::addArg(std::shared_ptr<ASTExpr> arg) noexcept {
 	mArgs.push_back(arg);
 }
 
-void ASTCompoundStmt::addDecl(std::shared_ptr<ASTDecl> decl) noexcept {
-	mDecls.push_back(decl);
-}
-
 void ASTCompoundStmt::addStmt(std::shared_ptr<ASTStmt> stmt) noexcept {
 	mStmts.push_back(stmt);
 }

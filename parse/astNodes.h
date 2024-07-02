@@ -146,13 +146,11 @@ public:
 	~ASTCompoundStmt() noexcept = default;
 
 	// defined in astNodes.cpp
-	void addDecl(std::shared_ptr<ASTDecl> decl) noexcept;
 	void addStmt(std::shared_ptr<ASTStmt> stmt) noexcept;
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 	llvm::Value * codegen(CodeContext& context) noexcept override;
 private:
-	std::vector<std::shared_ptr<ASTDecl>> mDecls;
 	std::vector<std::shared_ptr<ASTStmt>> mStmts;
 };
 
@@ -265,15 +263,16 @@ protected:
 // id
 class ASTIdentExpr : public ASTExpr {
 public:
-	// so it can access mIdent
-	friend class ASTAssignOp;
-
 	ASTIdentExpr(Identifier& ident) noexcept
 	: mIdent {ident} {
 		mType = mIdent.getType();
 	}
 
 	~ASTIdentExpr() noexcept = default;
+
+	llvm::Value * getAddress() const noexcept {
+		return mIdent.getAddress();
+	}
 
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 	llvm::Value * codegen(CodeContext& context) noexcept override;
@@ -284,12 +283,10 @@ private:
 // id [ Expr ]
 class ASTArrayExpr : public ASTExpr {
 public:
-	// so it can access mIdent
-	friend class ASTAssignOp;
-
 	ASTArrayExpr(Identifier& ident, std::shared_ptr<ASTExpr> expr) noexcept
 	: mExpr {expr}
-	, mIdent {ident} {
+	, mIdent {ident}
+	, mIndexLoc {nullptr} {
 		switch (ident.getType()) {
 			case Type::CharArray:
 				mType = Type::Char;
@@ -307,11 +304,28 @@ public:
 
 	~ASTArrayExpr() noexcept = default;
 
+	void setIndexLoc(llvm::Value * val) noexcept {
+		mIndexLoc = val;
+	}
+
+	llvm::Value * getIndexLoc() const noexcept {
+		return mIndexLoc;
+	}
+
+	llvm::Value * getAddress() const noexcept {
+		return mIdent.getAddress();
+	}
+
+	std::shared_ptr<ASTExpr> getExpr() const noexcept {
+		return mExpr;
+	}
+
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 	llvm::Value * codegen(CodeContext& context) noexcept override;
 private:
 	std::shared_ptr<ASTExpr> mExpr;
 	Identifier& mIdent;
+	llvm::Value * mIndexLoc;
 };
 
 // lhs (+=, -=, =) rhs
@@ -474,9 +488,10 @@ private:
 // ++id
 class ASTIncExpr : public ASTExpr {
 public:
-	ASTIncExpr(Identifier& ident) noexcept
-	: mIdent {ident} {
-		mType = mIdent.getType();
+	ASTIncExpr(Identifier& ident, std::shared_ptr<ASTExpr> expr) noexcept 
+	: mIdent {ident}
+	, mExpr {expr} {
+		mType = ident.getType();
 	}
 
 	~ASTIncExpr() noexcept = default; 
@@ -485,14 +500,16 @@ public:
 	llvm::Value * codegen(CodeContext& context) noexcept override;
 private:
 	Identifier& mIdent;
+	std::shared_ptr<ASTExpr> mExpr;
 };
 
 // --id
 class ASTDecExpr : public ASTExpr {
 public:
-	ASTDecExpr(Identifier& ident) noexcept
-	: mIdent {ident} {
-		mType = mIdent.getType();
+	ASTDecExpr(Identifier& ident, std::shared_ptr<ASTExpr> expr) noexcept 
+	: mIdent {ident}
+	, mExpr {expr} {
+		mType = ident.getType();
 	}
 
 	~ASTDecExpr() noexcept = default; 
@@ -500,7 +517,8 @@ public:
 	void printNode(std::ostream& output, int depth = 0) const noexcept override;
 	llvm::Value * codegen(CodeContext& context) noexcept override;
 private:
-	Identifier& mIdent;
+	Identifier& mIdent;	
+	std::shared_ptr<ASTExpr> mExpr;
 };
 
 class ASTAddrOfArray : public ASTExpr {

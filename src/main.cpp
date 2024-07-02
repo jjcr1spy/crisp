@@ -54,25 +54,28 @@ int main(int argc, char * argv[]) {
         // AST can be printed to stdout if specified and no parsing errors
         Parser parser {scanner, symTable, strTable, argv[1], errStream, astStream};
 
-        // parsing errors?
+        // if parsing errors don't continue w compilation
         if (!parser.isValid()) {
             std::cerr << parser.getNumErrors() << " Error(s)" << std::endl;
 			return 1;
         }
 
-        // LLVM IR generation
+        // llvm ssa ir gen
         Emitter emit {parser};
-        
 
-        // verify no problems with IR gen
+        // if llvm ir gen has error(s) print to cerr and w compilation 
+        if (!emit.verify()) {
+			return 1;
+        }
 
-        // convert IR to SSA form
+        // print llvm mir to stdout
+        emit.print();
+
+        // continue optimizations and mem2reg pass for SSA form 
+        // and get rid of redundant load and store ops
         // TODO
 
-        // continue optimizations 
-        // TODO
-
-        // continue w backend shit 
+        // continue w backend 
         // TODO
     } catch (ParseExcept& e) {
 		std::cerr << "crisp: error: Critical error. Compilation halted." << std::endl;

@@ -269,10 +269,6 @@ void ASTCompoundStmt::printNode(std::ostream& output, int depth) const noexcept 
 
     output << "CompoundStmt:" << std::endl;
 
-    for (auto decl : mDecls) {
-        decl->printNode(output, depth + 1);
-    }
-
     for (auto stmt : mStmts) {
         stmt->printNode(output, depth + 1);
     }

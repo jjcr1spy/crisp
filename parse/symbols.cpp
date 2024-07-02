@@ -42,9 +42,9 @@ llvm::Type * Identifier::llvmType(llvm::LLVMContext& ctx, bool treatArrayAsPtr) 
         case Type::IntArray:
             // treating array as pointer?
             if (treatArrayAsPtr) {
-                type = llvm::PointerType::get(llvm::Type::getInt8Ty(ctx), 0);
+                type = llvm::PointerType::get(llvm::Type::getInt32Ty(ctx), 0);
             } else {
-                type = llvm::ArrayType::get(llvm::Type::getInt8Ty(ctx), mElemCount);
+                type = llvm::ArrayType::get(llvm::Type::getInt32Ty(ctx), mElemCount);
             }
 
             break;
@@ -65,12 +65,14 @@ llvm::Type * Identifier::llvmType(llvm::LLVMContext& ctx, bool treatArrayAsPtr) 
 }
 
 llvm::Value * Identifier::readFrom(CodeContext& ctx) noexcept {	
-    return ctx.mSSA.readVariable(this, ctx.mBlock);
+    // FOR SSA DOWN THE LINE
+    // return ctx.mSSA.readVariable(this, ctx.mBlock);
 }
 	
 void Identifier::writeTo(CodeContext& ctx, llvm::Value * value) noexcept {
+    // FOR SSA DOWN THE LINE
     // use the custom SSA class to generate proper virtual register
-    ctx.mSSA.writeVariable(this, ctx.mBlock, value);
+    // ctx.mSSA.writeVariable(this, ctx.mBlock, value);
 }
 
 /*

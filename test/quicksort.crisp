@@ -68,7 +68,7 @@ int main() {
 	i = 0;
 	while (i < 35) {
 		printf("%d ", sort[i]);
-		++i;
+		//++i;
 	}
 
 	printf("\n");

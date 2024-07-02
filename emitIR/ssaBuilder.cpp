@@ -1,5 +1,7 @@
+#include <iostream>
 #include "../parse/symbols.h"
 #include "emitter.h"
+#include "ssaBuilder.h"
 
 // note all llvm headers are in emitter.h
 
@@ -90,11 +92,26 @@ llvm::Value * SSABuilder::addPhiOperands(Identifier * var, llvm::PHINode * phi) 
     llvm::BasicBlock * block = phi->getParent();
 
     for (auto it = pred_begin(block); it != pred_end(block); it++) {
-        phi->addIncoming(readVariable(var, *it), *it);
+        llvm::Value * v = readVariable(var, *it);
+
+        if (llvm::isa<llvm::PointerType>(v->getType())) {
+            
+        }
+
+
+        phi->addIncoming(v, *it);
     }
     
     return tryRemoveTrivialPhi(phi);
 }
+
+        // // check if v is a pointer type
+        // if (v->getType()->isPointerTy()) {
+        //     // convert pointer to integer type
+        //     llvm::Type* intType = phi->getType(); 
+        //     llvm::IRBuilder<> builder(*it);
+        //     v = builder.CreatePtrToInt(v, intType, "ptrToint");
+        // }
 
 // removes trivial phi nodes
 llvm::Value * SSABuilder::tryRemoveTrivialPhi(llvm::PHINode * phi) noexcept {

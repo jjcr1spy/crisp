@@ -56,7 +56,7 @@ public:
         mFunction = func;
     }
 
-	void setAddress(llvm::Value* value) noexcept {
+	void setAddress(llvm::Value * value) noexcept {
 		mAddress = value;
 	}
 

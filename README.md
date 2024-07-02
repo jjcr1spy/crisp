@@ -108,7 +108,7 @@ What if we don’t follow SSA in our LLVM IR generation?
 An alternative solution: 
 - While converting to LLVM IR, maintain SSA form on the fly using an algorithm in a published paper. Refer to the file in the GitHub repo titled SSA_paper.pdf
 
-This is the approach we will be using.
+We will be using alloca, load, and store instructions initially and leverage mem2reg pass. Down the line we will integrate to the alternative solution. This allows us to not deal with PHI nodes or anything related to matter. We can just use pointers via the stack and load and store from said pointers so SSA form still holds.
 
 I almost forgot to mention why even use SSA????? The short story is optimization algorithms love SSA form due to the way it simplifies data flow and control flow analysis.
 

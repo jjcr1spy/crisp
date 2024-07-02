@@ -15,8 +15,12 @@ defines the LLVM IR Emitter class which is used for codegen aswell as a helper s
 #include "llvm/IR/Type.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Support/Casting.h"
-#include "ssaBuilder.h"
+#include "llvm/Support/raw_ostream.h"
+
+// TODO
+// #include "ssaBuilder.h"
 
 // in ../parse/symbols.h
 class StringTable; class Identifier;
@@ -25,22 +29,17 @@ class StringTable; class Identifier;
 class Parser;
 
 struct CodeContext {
-    CodeContext(StringTable& strTable) noexcept;
+    CodeContext(StringTable& strings, const char * fileName) noexcept;
     ~CodeContext() noexcept = default;
 
     // an opaque object that owns a lot of core 
     // LLVM data structures such as the type and constant value tables
     std::unique_ptr<llvm::LLVMContext> mGlobalContext;
 
-    // a helper object that makes it easy to generate LLVM instructions
-    // instances of the IRBuilder class template keep track of the current place to insert 
-    // instructions and has methods to create new instructions
-    std::unique_ptr<llvm::IRBuilder<>> mBuilder;
-
     // a LLVM construct that contains functions and global variables
     std::unique_ptr<llvm::Module> mModule;
 
-    // StringTable for the program
+    // constant global strings
     StringTable& mStrings;
 
     // current Function
@@ -53,7 +52,8 @@ struct CodeContext {
     Identifier * mPrintfIdent;
 
     // helper class to construct SSA LLVM IR
-    SSABuilder mSSA;
+    // TODO
+    // SSABuilder mSSA;
 };
 
 class Emitter {
@@ -63,6 +63,12 @@ public:
 
     // print bitcode to stdout
     void print() noexcept;
+
+    // check for erros in bitcode 
+    bool verify() noexcept;
+
+    // run opt passes on llvm ssa ir
+    void optimize() noexcept;
 private:
     // store all LLVM IR info
 	CodeContext mCodeContext;

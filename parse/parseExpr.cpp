@@ -407,7 +407,7 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 		consumeToken();
 
 		if (peekAndConsume(TokenType::LBracket)) {
-			if (ident->getType() != Type::IntArray && ident->getType() != Type::CharArray && !ident->isDummy()) {
+			if (ident->getType() != Type::DoubleArray && ident->getType() != Type::IntArray && ident->getType() != Type::CharArray && !ident->isDummy()) {
 				std::string err("Identifier is not an array");
 
 				reportSemantError(err, col);
@@ -461,7 +461,6 @@ std::shared_ptr<ASTExpr> Parser::parseIdentFactor() {
 				
 				// get the number of arguments for this function
 				std::shared_ptr<ASTFunc> func = ident->getFunction();
-				
 				try {
 					int currArg = 1, col = mCurrToken.mCol;
 
@@ -607,8 +606,15 @@ std::shared_ptr<ASTExpr> Parser::parseIncFactor() {
 	std::shared_ptr<ASTExpr> retVal;
 	
 	if (peekAndConsume(TokenType::Inc)) {
-		retVal = std::make_shared<ASTIncExpr>(*getVariable(mCurrToken.mStr));
-		matchToken(TokenType::Identifier);
+		if (!peekIsOneOf({TokenType::Identifier})) throw ParseExceptMsg("++ must be followed by an identifier.");
+
+		Identifier * ident = getVariable(mCurrToken.mStr);
+
+		std::shared_ptr<ASTExpr> expr = parseExpr();
+
+		if (!expr) throw ParseExceptMsg("++ followed by invalid expression.");
+
+		retVal = std::make_shared<ASTIncExpr>(*ident, expr);
 	}
 	
 	return retVal;
@@ -617,12 +623,19 @@ std::shared_ptr<ASTExpr> Parser::parseIncFactor() {
 // --id
 std::shared_ptr<ASTExpr> Parser::parseDecFactor() {
 	std::shared_ptr<ASTExpr> retVal;
-	
-	if (peekAndConsume(TokenType::Dec)) {
-		retVal = std::make_shared<ASTDecExpr>(*getVariable(mCurrToken.mStr));
-		matchToken(TokenType::Identifier);
-	}
 
+	if (peekAndConsume(TokenType::Dec)) {
+		if (!peekIsOneOf({TokenType::Identifier})) throw ParseExceptMsg("-- must be followed by an identifier.");
+
+		Identifier * ident = getVariable(mCurrToken.mStr);
+
+		std::shared_ptr<ASTExpr> expr = parseExpr();
+
+		if (!expr) throw ParseExceptMsg("-- followed by invalid expression.");
+
+		retVal = std::make_shared<ASTDecExpr>(*ident, expr);
+	}
+	
 	return retVal;
 }
 
