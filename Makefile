@@ -16,7 +16,8 @@ LLVMLINKFLAG := $(shell llvm-config --ldflags)
 
 # links all llvm libs used w flag -l
 # -l: used during the linking phase to specify a lib to link against
-LLVMLIBS := $(shell llvm-config --libs)
+# added -lz bc linker was crying ab missing zlib1g-dev symbols
+LLVMLIBS := $(shell llvm-config --libs) -lz
 
 # phony targets (targets that don't represent actual files)
 .PHONY: all clean

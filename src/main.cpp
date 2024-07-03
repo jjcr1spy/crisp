@@ -68,15 +68,19 @@ int main(int argc, char * argv[]) {
 			return 1;
         }
 
-        // print llvm mir to stdout
-        emit.print();
+        // print llvm ir to stdout 
+        // std::cout << "\nIR before LLVM passes:\n";
+        // emit.print();
 
         // continue optimizations and mem2reg pass for SSA form 
-        // and get rid of redundant load and store ops
-        // TODO
+        emit.optimize();
 
-        // continue w backend 
-        // TODO
+        // print optimized llvm ir to stdout 
+        // std::cout << "\nIR after LLVM passes:\n";
+        emit.print();
+
+        // generate bitcode from llvm ir
+        // emit.bitcode();
     } catch (ParseExcept& e) {
 		std::cerr << "crisp: error: Critical error. Compilation halted." << std::endl;
 		return 1;

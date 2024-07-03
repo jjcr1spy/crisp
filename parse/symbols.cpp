@@ -65,14 +65,11 @@ llvm::Type * Identifier::llvmType(llvm::LLVMContext& ctx, bool treatArrayAsPtr) 
 }
 
 llvm::Value * Identifier::readFrom(CodeContext& ctx) noexcept {	
-    // FOR SSA DOWN THE LINE
-    // return ctx.mSSA.readVariable(this, ctx.mBlock);
+
 }
 	
 void Identifier::writeTo(CodeContext& ctx, llvm::Value * value) noexcept {
-    // FOR SSA DOWN THE LINE
-    // use the custom SSA class to generate proper virtual register
-    // ctx.mSSA.writeVariable(this, ctx.mBlock, value);
+
 }
 
 /*

@@ -231,10 +231,13 @@ std::shared_ptr<ASTProg> Parser::parseProgram() {
 		reportError("Expected end of file");
 	}
 	
-	if (isValid()) {
-		retVal->printNode((*mAstStream));
-		mSymbolTable.print((*mAstStream));
-	}
+	// if (isValid()) {
+	// 	retVal->printNode((*mAstStream));
+	// 	*mAstStream << std::endl; 
+
+	// 	mSymbolTable.print((*mAstStream));
+	// 	*mAstStream << std::endl; 
+	// }
 	
 	return retVal;
 }

@@ -12,8 +12,8 @@ llvm::Value * ASTProg::codegen(CodeContext& ctx) noexcept {
         // add args 
         std::vector<llvm::Type *> printfArgs;
 
-        // push pointer back to first arg 
-    	printfArgs.push_back(llvm::PointerType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), 0));
+        // not necessary? 
+    	// printfArgs.push_back(llvm::PointerType::get(llvm::Type::getInt8Ty(*ctx.mGlobalContext), 0));
         
         // type for function
     	llvm::FunctionType * printfType = llvm::FunctionType::get(llvm::Type::getInt32Ty(*ctx.mGlobalContext), printfArgs, true);

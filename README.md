@@ -113,3 +113,11 @@ We will be using alloca, load, and store instructions initially and leverage mem
 I almost forgot to mention why even use SSA????? The short story is optimization algorithms love SSA form due to the way it simplifies data flow and control flow analysis.
 
 ### 3. TODO
+
+At this point, we generated LLVM IR in SSA form. We can use LLVM tools and piping to get an executable of our LLVM IR (.ll).
+
+`./crisp ./test/example.crisp | llc --relocation-model=pic -filetype=asm -o example.s`
+`clang example.s -o example` 
+
+- llc is the LLVM static compiler. It converts either the LLVM assembly language format (.ll) or the LLVM bitcode format (.bc) to our target architecture assembly file (.s) or object file (.o). 
+- clang uses an assembler to convert the assembly file into an object file then it uses a linker to turn the object file into an executable file (.exe).

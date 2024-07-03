@@ -1,0 +1,12 @@
+int main() {
+	int sort[35];
+
+	int i = 0;
+	while (i < 35) {
+		sort[i] = i;
+		printf("%d\n", sort[i]);
+		++i;
+	}
+
+	return 0;
+}

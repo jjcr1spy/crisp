@@ -19,6 +19,7 @@ defines the LLVM IR Emitter class which is used for codegen aswell as a helper s
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
+
 // in ../parse/symbols.h
 class StringTable; class Identifier;
 
@@ -57,11 +58,14 @@ public:
     // print bitcode to stdout
     void print() noexcept;
 
-    // check for erros in bitcode 
+    // check for erros in ir gen 
     bool verify() noexcept;
 
-    // run opt passes on llvm ssa ir
+    // run mem2reg pass and get rid of excessive allocas/loads/storesopt + other optimizations on llvm ssa ir
     void optimize() noexcept;
+
+    // generate bitcode
+    void bitcode() noexcept;
 private:
     // store all LLVM IR info
 	CodeContext mCodeContext;
