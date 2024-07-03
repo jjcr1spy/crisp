@@ -78,19 +78,11 @@ llvm::Value * ASTFunc::codegen(CodeContext& ctx) noexcept {
 	// create function and make it the current one
 	ctx.mFunc = llvm::Function::Create(funcType, llvm::GlobalValue::LinkageTypes::ExternalLinkage, mIdent.getName(), *ctx.mModule);
 	
-    // FOR SSA DOWN THE LINE
-    // now that we have a new function reset our SSA builder
-	// ctx.mSSA.reset();
-
 	// map the ident to this function
 	mIdent.setAddress(ctx.mFunc);
 	
 	// create function and make it the current one
 	ctx.mBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "entry", ctx.mFunc);
-    
-    // FOR SSA DOWN THE LINE
-    // add and seal this block
-	// ctx.mSSA.addBlock(ctx.mBlock, true);
 
 	// if we have arguments we need to set the name/value of them
 	if (mArgs.size() > 0) {
@@ -103,20 +95,12 @@ llvm::Value * ASTFunc::codegen(CodeContext& ctx) noexcept {
 			
             iter->setName(argIdent.getName());
 			
-            // FOR SSA DOWN THE LINE
-			// argIdent.writeTo(ctx, iter);
-			
 			++i;
 			++iter;
 		}
 	}
 	
 	ctx.mFunc->setCallingConv(llvm::CallingConv::C);
-	
-    // FOR SSA DOWN THE LINE
-	// add all the declarations for variables created in this function
-    // revisit this when implementing ssa form 
-	// mScopeTable.codegen(ctx);
 
     // emit the function args
     // need to allocate space for args and store arg values in them
@@ -245,9 +229,6 @@ llvm::Value * ASTForStmt::codegen(CodeContext& ctx) noexcept {
 
 llvm::Value * ASTWhileStmt::codegen(CodeContext& ctx) noexcept {
     auto cond = llvm::BasicBlock::Create(*ctx.mGlobalContext, "while.cond", ctx.mFunc);
-
-    // FOR SSA DOWN THE LINE
-    // ctx.mSSA.addBlock(cond);
     
     llvm::IRBuilder<> builder(ctx.mBlock);
 
@@ -269,14 +250,8 @@ llvm::Value * ASTWhileStmt::codegen(CodeContext& ctx) noexcept {
     // after exprs codegen
     auto body = llvm::BasicBlock::Create(*ctx.mGlobalContext, "while.body", ctx.mFunc); 
 
-    // FOR SSA DOWN THE LINE
-    // ctx.mSSA.addBlock(body, true);
-
     // conditional branch in while.cond
     auto end = llvm::BasicBlock::Create(*ctx.mGlobalContext, "while.end", ctx.mFunc);
-    
-    // FOR SSA DOWN THE LINE
-    // ctx.mSSA.addBlock(end, true);
 
     builderCond.CreateCondBr(value, body, end); 
 
@@ -287,9 +262,6 @@ llvm::Value * ASTWhileStmt::codegen(CodeContext& ctx) noexcept {
     llvm::IRBuilder<> builderBody(ctx.mBlock);
     
     builderBody.CreateBr(cond);
-    
-    // FOR SSA DOWN THE LINE
-    // ctx.mSSA.sealBlock(cond);
     
     ctx.mBlock = end;
     
@@ -339,18 +311,10 @@ llvm::Value * ASTLogicalAnd::codegen(CodeContext& ctx) noexcept {
 	// create the block for the RHS
 	llvm::BasicBlock * rhsBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "and.rhs", ctx.mFunc);
 	
-    // FOR SSA DOWN THE LINE
-    // add the rhs block to SSA (not sealed)
-	// ctx.mSSA.addBlock(rhsBlock);
-	
 	// in both "true" and "false" condition we will jump to and.end
 	// this is because we will insert a phi node that assumes false
 	// if the and.end jump was from the lhs block
 	llvm::BasicBlock * endBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "and.end", ctx.mFunc);
-	
-    // FOR SSA DOWN THE LINE
-    // also not sealed
-	// ctx.mSSA.addBlock(endBlock);
 	
 	// now generate the LHS
 	llvm::Value * lhsVal = mLHS->codegen(ctx);
@@ -366,10 +330,6 @@ llvm::Value * ASTLogicalAnd::codegen(CodeContext& ctx) noexcept {
 		lhsVal = build.CreateICmpNE(lhsVal, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)), "tobool");
 		build.CreateCondBr(lhsVal, rhsBlock, endBlock);
 	}
-	
-    // FOR SSA DOWN THE LINE
-	// rhsBlock should now be sealed
-	// ctx.mSSA.sealBlock(rhsBlock);
 	
 	// code should now be generated in the RHS block
 	ctx.mBlock = rhsBlock;
@@ -388,10 +348,6 @@ llvm::Value * ASTLogicalAnd::codegen(CodeContext& ctx) noexcept {
 		// the correct value
 		build.CreateBr(endBlock);
 	}
-	
-    // FOR SSA DOWN THE LINE
-	// endBlock should now be sealed
-	// ctx.mSSA.sealBlock(endBlock);
 	
 	ctx.mBlock = endBlock;
 	
@@ -421,18 +377,10 @@ llvm::Value * ASTLogicalOr::codegen(CodeContext& ctx) noexcept {
 	// create the block for the RHS
 	llvm::BasicBlock * rhsBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "or.rhs", ctx.mFunc);
 	
-    // FOR SSA DOWN THE LINE
-    // add the rhs block to SSA (not sealed)
-	// ctx.mSSA.addBlock(rhsBlock);
-	
 	// in both "true" and "false" condition we will jump to and.end
 	// this is because we will insert a phi node that assumes false
 	// if the and.end jump was from the lhs block
 	llvm::BasicBlock * endBlock = llvm::BasicBlock::Create(*ctx.mGlobalContext, "or.end", ctx.mFunc);
-	
-    // FOR SSA DOWN THE LINE
-    // also not sealed
-	// ctx.mSSA.addBlock(endBlock);
 	
 	// now generate the LHS
 	llvm::Value * lhsVal = mLHS->codegen(ctx);
@@ -448,10 +396,6 @@ llvm::Value * ASTLogicalOr::codegen(CodeContext& ctx) noexcept {
 		lhsVal = build.CreateICmpNE(lhsVal, llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(*ctx.mGlobalContext)), "tobool");
 		build.CreateCondBr(lhsVal, rhsBlock, endBlock);
 	}
-	
-    // FOR SSA DOWN THE LINE
-	// rhsBlock should now be sealed
-	// ctx.mSSA.sealBlock(rhsBlock);
 	
 	// code should now be generated in the RHS block
 	ctx.mBlock = rhsBlock;
@@ -470,10 +414,6 @@ llvm::Value * ASTLogicalOr::codegen(CodeContext& ctx) noexcept {
 		// the correct value
 		build.CreateBr(endBlock);
 	}
-	
-    // FOR SSA DOWN THE LINE
-	// endBlock should now be sealed
-	// ctx.mSSA.sealBlock(endBlock);
 	
 	ctx.mBlock = endBlock;
 	

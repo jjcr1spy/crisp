@@ -19,9 +19,6 @@ defines the LLVM IR Emitter class which is used for codegen aswell as a helper s
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
-// TODO
-// #include "ssaBuilder.h"
-
 // in ../parse/symbols.h
 class StringTable; class Identifier;
 
@@ -50,10 +47,6 @@ struct CodeContext {
 
     // non-null if we need extern printf
     Identifier * mPrintfIdent;
-
-    // helper class to construct SSA LLVM IR
-    // TODO
-    // SSABuilder mSSA;
 };
 
 class Emitter {
